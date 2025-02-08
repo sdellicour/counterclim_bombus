@@ -45,23 +45,30 @@ models_isimip3a_names = c("GSWP3-W5E5", "20CRv3", "20CRv3-ERA5", "20CRv3-W5E5")
 
 	# 1.1. Preparation of the European shapefile that will be used as a mask
 
-coastlines = shapefile("Continents_shapefile/NaturalEarth_10m_continents.shp")
-countries = shapefile("Continents_shapefile/NaturalEarth_10m_countries.shp")
-countries_EU = subset(crop(countries,extentOfStudyArea), CONTINENT=="Europe")
-europe1 = crop(coastlines, countries_EU); polygons = list(); c = 0
-for (i in 1:length(europe1@polygons))
+if (!file.exists("Continents_shapefile/Simplified_European_contour.shp"))
 	{
-		for (j in 1:length(europe1@polygons[[i]]@Polygons))
+		coastlines = shapefile("Continents_shapefile/NaturalEarth_10m_continents.shp")
+		countries = shapefile("Continents_shapefile/NaturalEarth_10m_countries.shp")
+		countries_EU = subset(crop(countries,extentOfStudyArea), CONTINENT=="Europe")
+		europe1 = crop(coastlines, countries_EU); polygons = list(); c = 0
+		for (i in 1:length(europe1@polygons))
 			{
-				if (europe1@polygons[[i]]@Polygons[[j]]@area > 0.5)
+				for (j in 1:length(europe1@polygons[[i]]@Polygons))
 					{
-						c = c+1; polygons[[c]] = europe1@polygons[[i]]@Polygons[[j]]
+						if (europe1@polygons[[i]]@Polygons[[j]]@area > 0.5)
+							{
+								c = c+1; polygons[[c]] = europe1@polygons[[i]]@Polygons[[j]]
+							}
 					}
 			}
+		pols = Polygons(polygons, 1); pols_list = list(); pols_list[[1]] = pols
+		europe2 = SpatialPolygons(pols_list); europe3 = gSimplify(europe2, 0.1)
+		europe2@proj4string=europe1@proj4string; europe3@proj4string=europe1@proj4string
+		europe3_spdf = SpatialPolygonsDataFrame(europe3, data.frame(IS=1:length(europe3@polygons)))
+		writeOGR(europe3_spdf, dsn="Continents_shapefile", layer="Simplified_European_contour", driver="ESRI Shapefile")
+	}	else		{
+		europe3 = shapefile("Continents_shapefile/Simplified_European_contour.shp")
 	}
-pols = Polygons(polygons, 1); pols_list = list(); pols_list[[1]] = pols
-europe2 = SpatialPolygons(pols_list); europe3 = gSimplify(europe2, 0.1)
-europe2@proj4string=europe1@proj4string; europe3@proj4string=europe1@proj4string
 
 	# 1.2. Preparing the different environmental rasters for the ENM analyses
 
@@ -111,7 +118,7 @@ for (i in 1:length(models_isimip3a))
 					}
 				land_covers2[[j]] = land_cover[[1]]; land_covers3[[j]] = raster::aggregate(land_cover[[1]],2)
 			}
-		envVariables = list(); population_log10 = population; population_log[] = log10(population_log[]+1) 
+		envVariables = list(); population_log10 = population; population_log10[] = log10(population_log[]+1) 
 		envVariables[[1]] = temperature_winter; envVariables[[2]] = temperature_spring
 		envVariables[[3]] = temperature_summer; envVariables[[4]] = temperature_inFall
 		envVariables[[5]] = precipitation_winter; envVariables[[6]] = precipitation_spring
@@ -276,33 +283,35 @@ for (i in 1:length(models_isimip3a))
 nullRaster = envVariables_list[[1]][[1]]; nullRaster[!is.na(nullRaster[])] = 1; names(nullRaster) = "nullRaster"
 for (i in 1:dim(species)[1])
 	{
-		if (!file.exists(paste0(directory,"/",species[i],".csv")))
+		if (!file.exists(paste0(directory,"/",species[i,1],".csv")))
 			{
-				tab = data[which(data$TAXON==gsub("_"," ",species[i])),]
+				tab = data[which(data$TAXON==gsub("_"," ",species[i,1])),]
 				tab = tab[,c("YEAR_2","LONGITUDE","LATITUDE")]
 				colnames(tab) = c("year","longitude","latitude")
 				tab = tab[which(!is.na(tab[,"year"])),]
-				write.csv(tab, paste0(directory,"/",species[i],".csv"), row.names=F, quote=F)
+				write.csv(tab, paste0(directory,"/",species[i,1],".csv"), row.names=F, quote=F)
 			}
 	}
 observations_list = list()
 for (t in 1:length(periods))
 	{
-		observations = list(); c = 0
-		minYear = periods[[t]][1]; maxYear = periods[[t]][2]
+		c = 0; observations = list(); minYear = periods[[t]][1]; maxYear = periods[[t]][2]
 		for (i in 1:dim(species)[1])
 			{
 				tab1 = read.csv(paste0(directory,"/",species[i,1],".csv"), header=T)
 				tab2 = tab1[which((tab1[,"year"]>=minYear)&(tab1[,"year"]<=maxYear)),c("longitude","latitude")]
-				observations[[i]] = tab2[which(!is.na(raster::extract(nullRaster,tab2))),]
-				c = c+dim(observations[[i]])[1]
+				tab3 = tab2[which(!is.na(raster::extract(nullRaster,tab2))),]
+				if (dim(tab3)[1] >= 30)
+					{
+						c = c+1; observations[[c]] = tab3
+					}
 			}
 		observations_list[[t]] = observations
 		if (savingPlots == TRUE)
 			{
-				pdf(paste0("All_the_figures_&_SI/Bombus_data_1on2_NEW.pdf"), width=8, height=(5.5*2))
-				par(mfrow=c(6,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.4, col="gray30")
-				for (i in 1:36)
+				pdf(paste0("All_the_figures_&_SI/Bombus_data_1on2_NEW.pdf"), width=8, height=(((5.5*2)/6)*5))
+				par(mfrow=c(5,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.4, col="gray30")
+				for (i in 1:30)
 					{
 						# plot(nullRaster, col=NA, axes=F, ann=F, box=F, legend=F)
 						plot(europe3, lwd=0.8, border="gray50", col="gray90")
@@ -311,9 +320,9 @@ for (t in 1:length(periods))
 						mtext(gsub("Bombus_","B. ",species[i,1]), side=3, line=-2, at=0, cex=0.50, col="gray30")
 					}
 				dev.off()
-				pdf(paste0("All_the_figures_&_SI/Bombus_data_2on2_NEW.pdf"), width=8, height=(5.5*2))
-				par(mfrow=c(6,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.4, col="gray30")
-				for (i in 37:66)
+				pdf(paste0("All_the_figures_&_SI/Bombus_data_2on2_NEW.pdf"), width=8, height=(((5.5*2)/6)*5))
+				par(mfrow=c(5,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.4, col="gray30")
+				for (i in 31:56)
 					{
 						# plot(nullRaster, col=NA, axes=F, ann=F, box=F, legend=F)
 						plot(europe3, lwd=0.8, border="gray50", col="gray90")
