@@ -295,7 +295,8 @@ for (i in 1:dim(species)[1])
 observations_list = list()
 for (t in 1:length(periods))
 	{
-		c = 0; observations = list(); minYear = periods[[t]][1]; maxYear = periods[[t]][2]
+		species = gsub(" ","_",unique(data$TAXON)); species = data.frame(species[order(species)])
+		c = 0; observations = list(); minYear = periods[[t]][1]; maxYear = periods[[t]][2]; indices = c()
 		for (i in 1:dim(species)[1])
 			{
 				tab1 = read.csv(paste0(directory,"/",species[i,1],".csv"), header=T)
@@ -303,10 +304,10 @@ for (t in 1:length(periods))
 				tab3 = tab2[which(!is.na(raster::extract(nullRaster,tab2))),]
 				if (dim(tab3)[1] >= 30)
 					{
-						c = c+1; observations[[c]] = tab3
+						c = c+1; indices = c(indices, i); observations[[c]] = tab3
 					}
 			}
-		observations_list[[t]] = observations
+		species = data.frame(species[indices,]); colnames(species) = "species"; observations_list[[t]] = observations
 		if (savingPlots == TRUE)
 			{
 				pdf(paste0("All_the_figures_&_SI/Bombus_data_1on2_NEW.pdf"), width=8, height=(((5.5*2)/6)*5))
