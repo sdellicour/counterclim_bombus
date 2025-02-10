@@ -83,7 +83,8 @@ for (i in 1:length(models_isimip3a))
 		temperature = brick(paste0("Environmental_rasters/ISIMIP3a/tas_day_obsclim_historical_",models_isimip3a[i],"_2000_2019_ymonmean.nc"))
 		precipitation = brick(paste0("Environmental_rasters/ISIMIP3a/pr_day_obsclim_historical_",models_isimip3a[i],"_2000_2019_ymonmean.nc"))
 		relative_humidity = brick(paste0("Environmental_rasters/ISIMIP3a/hurs_day_obsclim_historical_",models_isimip3a[i],"_2000_2019_ymonmean.nc"))
-		land_cover = nc_open(paste0("Environmental_rasters/ISIMIP3a/landcover_annual_2000_2015_timmean.nc4"))
+		# land_cover = nc_open(paste0("Environmental_rasters/ISIMIP3a/landcover_annual_2000_2015_timmean.nc4"))
+		land_cover = nc_open(paste0("Environmental_rasters/ISIMIP3a/landcover_annual_2000_2019_timmean.nc"))
 		population = brick(paste0("Environmental_rasters/ISIMIP3a/population_histsoc_0p5deg_annual_2000_2019_timmean.nc4"))		
 		temperature_winter = mean(temperature[[12]],temperature[[1]],temperature[[2]])-273.15 # conversion to Celcius degrees
 		temperature_spring = mean(temperature[[3]],temperature[[4]],temperature[[5]])-273.15 # conversion to Celcius degrees
@@ -97,11 +98,12 @@ for (i in 1:length(models_isimip3a))
 		relative_humidity_spring = mean(relative_humidity[[3]],relative_humidity[[4]],relative_humidity[[5]])
 		relative_humidity_summer = mean(relative_humidity[[6]],relative_humidity[[7]],relative_humidity[[8]])
 		relative_humidity_inFall = mean(relative_humidity[[9]],relative_humidity[[10]],relative_humidity[[11]])
-		landCoverVariableIDs = names(land_cover$var); land_covers1 = list(); land_covers2 = list(); land_covers3 = list()
 		landCoverVariableNames = as.character(read.csv("Environmental_rasters/Luse.csv")[1:12,2])
-		for (j in 2:13)
+		landCoverVariableIDs = as.character(read.csv("Environmental_rasters/Luse.csv")[1:12,1])
+		land_covers1 = list(); land_covers2 = list(); land_covers3 = list()
+		for (j in 1:12)
 			{
-				land_covers1[[j-1]] = brick(paste0("Environmental_rasters/ISIMIP3a/landcover_annual_2000_2015_timmean.nc4"), varname=landCoverVariableIDs[j])
+				land_covers1[[j]] = brick(paste0("Environmental_rasters/ISIMIP3a/landcover_annual_2000_2019_timmean.nc"), varname=landCoverVariableIDs[j])
 			}
 		variable_codes = c("croplands","pastures","urbanAreas","primaryForest","primaryNonF","secondaryForest","secondaryNonF")
 		variable_names = c("crops","pasture","urban land","forested primary land","non-forested primary land",
@@ -118,7 +120,7 @@ for (i in 1:length(models_isimip3a))
 					}
 				land_covers2[[j]] = land_cover[[1]]; land_covers3[[j]] = raster::aggregate(land_cover[[1]],2)
 			}
-		envVariables = list(); population_log10 = population; population_log10[] = log10(population_log[]+1) 
+		envVariables = list(); population_log10 = population; population_log10[] = log10(population_log10[]+1) 
 		envVariables[[1]] = temperature_winter; envVariables[[2]] = temperature_spring
 		envVariables[[3]] = temperature_summer; envVariables[[4]] = temperature_inFall
 		envVariables[[5]] = precipitation_winter; envVariables[[6]] = precipitation_spring
@@ -174,7 +176,7 @@ for (i in 1:length(models_isimip3a))
 				mtext("Air temperature", side=3, line=-1.1, at=5, cex=0.37, col="gray30"); mtext("(fall, °C)", side=3, line=-1.6, at=5, cex=0.37, col="gray30")
 				plot(rast, legend.only=T, add=T, col=colourScale, legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.75,0.96), adj=3,
 					 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0)), alpha=1, side=3)
-				v = 13; colourScale = c("#E5E5E5",colorRampPalette(c("gray97","chartreuse4"),bias=1)(121)[21:121]); contour = contour2
+				j = 13; colourScale = c("#E5E5E5",colorRampPalette(c("gray97","chartreuse4"),bias=1)(121)[21:121]); contour = contour2
 				vS = envVariables[[j]][]; rast = raster(as.matrix(c(min(vS,na.rm=T),max(vS,na.rm=T)))); cols = colourScale
 				plot(europe3, lwd=0.1, border=NA, col=NA); plot(envVariables[[j]], col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
 				mtext("Primary forested", side=3, line=-1.1, at=5, cex=0.37, col="gray30"); mtext("areas", side=3, line=-1.6, at=5, cex=0.37, col="gray30")
@@ -268,7 +270,7 @@ for (i in 1:length(models_isimip3a))
 				mtext("Croplands", side=3, line=-1.1, at=5, cex=0.37, col="gray30"); mtext("(all categories)", side=3, line=-1.6, at=5, cex=0.37, col="gray30")
 				plot(rast, legend.only=T, add=T, col=colourScale, legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.75,0.96), adj=3,
 					 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0)), alpha=1, side=3)
-				j = 19; colourScale = colorRampPalette(brewer.pal(9,"BuPu"))(151)[21:121]; contour = contour1
+				j = 19; colourScale = colorRampPalette(brewer.pal(9,"BuPu"))(191)[21:121]; contour = contour1
 				vS = envVariables[[j]][]; rast = raster(as.matrix(c(min(vS,na.rm=T),max(vS,na.rm=T)))); cols = colourScale
 				plot(europe3, lwd=0.1, border=NA, col=NA); plot(envVariables[[j]], col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
 				mtext("Human population", side=3, line=-1.1, at=5, cex=0.37, col="gray30"); mtext("density (log10/km2)", side=3, line=-1.6, at=5, cex=0.37, col="gray30")
