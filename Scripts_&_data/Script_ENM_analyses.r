@@ -297,14 +297,16 @@ for (i in 1:dim(species)[1])
 observations_list = list()
 for (t in 1:length(periods))
 	{
-		species = gsub(" ","_",unique(data$TAXON)); species = data.frame(species[order(species)])
-		c = 0; observations = list(); minYear = periods[[t]][1]; maxYear = periods[[t]][2]; indices = c()
+		species = gsub(" ","_",unique(data$TAXON)); species = species[which(species!="Bombus_xanthopus")]
+		species = data.frame(species[order(species)]); indices = c() # B. xanthopus discarded because insular
+		c = 0; observations = list(); minYear = periods[[t]][1]; maxYear = periods[[t]][2]
 		for (i in 1:dim(species)[1])
 			{
 				tab1 = read.csv(paste0(directory,"/",species[i,1],".csv"), header=T)
 				tab2 = tab1[which((tab1[,"year"]>=minYear)&(tab1[,"year"]<=maxYear)),c("longitude","latitude")]
-				tab3 = tab2[which(!is.na(raster::extract(nullRaster,tab2))),]
-				if (dim(tab3)[1] >= 30)
+				tab3 = tab2[which(!is.na(raster::extract(nullRaster,tab2))),]; coordinates = rep(NA, dim(tab3)[1])
+				for (j in 1:dim(tab3)[1]) coordinates[j] = paste0(tab3[j,"longitude"],"_",tab3[j,"longitude"])
+				if (length(unique(coordinates)) >= 30)
 					{
 						c = c+1; indices = c(indices, i); observations[[c]] = tab3
 					}
@@ -325,7 +327,7 @@ for (t in 1:length(periods))
 				dev.off()
 				pdf(paste0("All_the_figures_&_SI/Bombus_data_2on2_NEW.pdf"), width=8, height=(((5.5*2)/6)*5))
 				par(mfrow=c(5,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.4, col="gray30")
-				for (i in 31:56)
+				for (i in 31:53)
 					{
 						# plot(nullRaster, col=NA, axes=F, ann=F, box=F, legend=F)
 						plot(europe3, lwd=0.8, border="gray50", col="gray90")
