@@ -1,0 +1,133 @@
+# NOTES:#
+	# - for the sampling of pseudo-absences, some improvements should be performed as compared to the previous study: (i) we should use a ratio 1:1, (ii) and each replicate should be based#
+	#	on an independent sampling of pseudo-absences within the background (= set of raster cells where there is at least one other record for another Bombus species); and (iii) finally, #
+	#	for the species for which there is not enough background cells remaining to reach a 1:1 ratio, we should sample the remaining pseudo-absences in the rest of the study area#
+#
+library(ade4)#
+library(ape)#
+library(blockCV)#
+library(diagram)#
+library(dismo)#
+library(gbm)#
+library(geosphere)#
+library(ggplot2)#
+library(HDInterval)#
+library(lubridate)#
+library(ncdf4)#
+library(ncf)#
+library(picante)#
+library(pgirmess)#
+library(phytools)#
+library(RColorBrewer)#
+library(raster)#
+library(rgdal)#
+library(rgeos)#
+library(seqinr)#
+library(sp)#
+library(vioplot)#
+#
+directory = "Bombus_obs_111224"; savingPlots = FALSE#
+timePeriods = c("2000_2019"); periods = list(c(2000,2019))#
+data = readRDS(paste0(directory,"/",directory,".rds"))#
+species = gsub(" ","_",unique(data$TAXON))#
+species = data.frame(species[order(species)])#
+extentOfStudyArea = extent(-12,29,36,72)#
+#
+envVariableNames = c("temperature_winter","temperature_spring","temperature_summer","temperature_inFall",#
+					 "precipitation_winter","tprecipitation_spring","precipitation_summer","precipitation_inFall",#
+					 "relative_humidity_winter","relative_humidity_spring","relative_humidity_summer","relative_humidity_inFall",#
+					 "primary_forest_areas","primary_non-forest_areas","secondary_forest_areas","secondary_non-forest_areas",#
+					 "croplands_all_categories","managed_pasture_and_rangeland","human_pop_density_log10")#
+models_isimip3a = c("gswp3-w5e5","20crv3","20crv3-era5","20crv3-w5e5")#
+models_isimip3a_names = c("GSWP3-W5E5", "20CRv3", "20CRv3-ERA5", "20CRv3-W5E5")
+if (!file.exists("Continents_shapefile/Simplified_European_contour.shp"))#
+	{#
+		coastlines = shapefile("Continents_shapefile/NaturalEarth_10m_continents.shp")#
+		countries = shapefile("Continents_shapefile/NaturalEarth_10m_countries.shp")#
+		countries_EU = subset(crop(countries,extentOfStudyArea), CONTINENT=="Europe")#
+		europe1 = crop(coastlines, countries_EU); polygons = list(); c = 0#
+		for (i in 1:length(europe1@polygons))#
+			{#
+				for (j in 1:length(europe1@polygons[[i]]@Polygons))#
+					{#
+						if (europe1@polygons[[i]]@Polygons[[j]]@area > 0.5)#
+							{#
+								c = c+1; polygons[[c]] = europe1@polygons[[i]]@Polygons[[j]]#
+							}#
+					}#
+			}#
+		pols = Polygons(polygons, 1); pols_list = list(); pols_list[[1]] = pols#
+		europe2 = SpatialPolygons(pols_list); europe3 = gSimplify(europe2, 0.1)#
+		europe2@proj4string=europe1@proj4string; europe3@proj4string=europe1@proj4string#
+		europe3_spdf = SpatialPolygonsDataFrame(europe3, data.frame(IS=1:length(europe3@polygons)))#
+		writeOGR(europe3_spdf, dsn="Continents_shapefile", layer="Simplified_European_contour", driver="ESRI Shapefile")#
+	}	else		{#
+		europe3 = shapefile("Continents_shapefile/Simplified_European_contour.shp")#
+	}
+envVariableNames = c("temperature_winter","temperature_spring","temperature_summer","temperature_inFall",#
+					 "precipitation_winter","tprecipitation_spring","precipitation_summer","precipitation_inFall",#
+					 "relative_humidity_winter","relative_humidity_spring","relative_humidity_summer","relative_humidity_inFall",#
+					 "primary_forest_areas","primary_non-forest_areas","secondary_forest_areas","secondary_non-forest_areas",#
+					 "croplands_all_categories","managed_pasture_and_rangeland","human_pop_density_log10")#
+envVariables_list = list()
+i=1
+temperature = brick(paste0("Environmental_rasters/ISIMIP3a/tas_day_obsclim_historical_",models_isimip3a[i],"_2000_2019_ymonmean.nc"))#
+		precipitation = brick(paste0("Environmental_rasters/ISIMIP3a/pr_day_obsclim_historical_",models_isimip3a[i],"_2000_2019_ymonmean.nc"))#
+		relative_humidity = brick(paste0("Environmental_rasters/ISIMIP3a/hurs_day_obsclim_historical_",models_isimip3a[i],"_2000_2019_ymonmean.nc"))#
+		# land_cover = nc_open(paste0("Environmental_rasters/ISIMIP3a/landcover_annual_2000_2015_timmean.nc4"))#
+		land_cover = nc_open(paste0("Environmental_rasters/ISIMIP3a/landcover_annual_2000_2019_timmean.nc"))#
+		population = brick(paste0("Environmental_rasters/ISIMIP3a/population_histsoc_0p5deg_annual_2000_2019_timmean.nc4"))		#
+		temperature_winter = mean(temperature[[12]],temperature[[1]],temperature[[2]])-273.15 # conversion to Celcius degrees#
+		temperature_spring = mean(temperature[[3]],temperature[[4]],temperature[[5]])-273.15 # conversion to Celcius degrees#
+		temperature_summer = mean(temperature[[6]],temperature[[7]],temperature[[8]])-273.15 # conversion to Celcius degrees#
+		temperature_inFall = mean(temperature[[9]],temperature[[10]],temperature[[11]])-273.15 # conversion to Celcius degrees#
+		precipitation_winter = mean(precipitation[[12]],precipitation[[1]],precipitation[[2]])*60*60*24 # conversion to kg/m2/day#
+		precipitation_spring = mean(precipitation[[3]],precipitation[[4]],precipitation[[5]])*60*60*24 # conversion to kg/m2/day#
+		precipitation_summer = mean(precipitation[[6]],precipitation[[7]],precipitation[[8]])*60*60*24 # conversion to kg/m2/day#
+		precipitation_inFall = mean(precipitation[[9]],precipitation[[10]],precipitation[[11]])*60*60*24 # conversion to kg/m2/day#
+		relative_humidity_winter = mean(relative_humidity[[12]],relative_humidity[[1]],relative_humidity[[2]])#
+		relative_humidity_spring = mean(relative_humidity[[3]],relative_humidity[[4]],relative_humidity[[5]])#
+		relative_humidity_summer = mean(relative_humidity[[6]],relative_humidity[[7]],relative_humidity[[8]])#
+		relative_humidity_inFall = mean(relative_humidity[[9]],relative_humidity[[10]],relative_humidity[[11]])#
+		landCoverVariableNames = as.character(read.csv("Environmental_rasters/Luse.csv")[1:12,2])#
+		landCoverVariableIDs = as.character(read.csv("Environmental_rasters/Luse.csv")[1:12,1])#
+		land_covers1 = list(); land_covers2 = list(); land_covers3 = list()#
+		for (j in 1:12)#
+			{#
+				land_covers1[[j]] = brick(paste0("Environmental_rasters/ISIMIP3a/landcover_annual_2000_2019_timmean.nc"), varname=landCoverVariableIDs[j])#
+			}#
+		variable_codes = c("croplands","pastures","urbanAreas","primaryForest","primaryNonF","secondaryForest","secondaryNonF")#
+		variable_names = c("crops","pasture","urban land","forested primary land","non-forested primary land",#
+				  		   "potentially forested secondary land","potentially non-forested secondary land")#
+		for (j in 1:length(variable_names))#
+			{#
+				names = gsub("\\."," ",landCoverVariableNames); indices = which(landCoverVariableNames==variable_names[j])#
+				if (length(indices) == 0) indices = which(grepl(variable_names[j],names))#
+				if (variable_names[j] == "pasture") indices = c(indices, which(grepl("rangeland",names)))#
+				land_cover = land_covers1[[indices[1]]]; names(land_cover) = variable_codes[j]; # print(indices)#
+				if (length(indices) > 1)#
+					{#
+						for (k in 2:length(indices)) land_cover[] = land_cover[]+land_covers1[[indices[k]]][]#
+					}#
+				land_covers2[[j]] = land_cover[[1]]; land_covers3[[j]] = raster::aggregate(land_cover[[1]],2)#
+			}#
+		envVariables = list(); population_log10 = population; population_log10[] = log10(population_log10[]+1) #
+		envVariables[[1]] = temperature_winter; envVariables[[2]] = temperature_spring#
+		envVariables[[3]] = temperature_summer; envVariables[[4]] = temperature_inFall#
+		envVariables[[5]] = precipitation_winter; envVariables[[6]] = precipitation_spring#
+		envVariables[[7]] = precipitation_summer; envVariables[[8]] = precipitation_inFall#
+		envVariables[[9]] = relative_humidity_winter; envVariables[[10]] = relative_humidity_spring#
+		envVariables[[11]] = relative_humidity_summer; envVariables[[12]] = relative_humidity_inFall#
+		envVariables[[13]] = land_covers2[[4]] # primary forest areas#
+		envVariables[[14]] = land_covers2[[5]] # primary non-forest areas#
+		envVariables[[15]] = land_covers2[[6]] # secondary forest areas#
+		envVariables[[16]] = land_covers2[[7]] # secondary non-forest areas#
+		envVariables[[17]] = land_covers2[[1]] # croplands (all catergories)#
+		envVariables[[18]] = land_covers2[[2]] # managed pasture + rangeland#
+		envVariables[[19]] = population_log10 # human population (log-transformed)#
+		for (j in 1:length(envVariables)) envVariables[[j]] = crop(envVariables[[j]], extentOfStudyArea, snap="out")#
+		for (j in 1:12) envVariables[[j]][which(is.na(envVariables[[19]][]))] = NA #
+		for (j in 1:length(envVariables)) envVariables[[j]] = crop(envVariables[[j]], europe3, snap="out")#
+		for (j in 1:length(envVariables)) envVariables[[j]] = mask(envVariables[[j]], europe3)#
+		envVariables_list[[1]] = envVariables
+getwd()

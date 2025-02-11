@@ -77,7 +77,7 @@ envVariableNames = c("temperature_winter","temperature_spring","temperature_summ
 					 "relative_humidity_winter","relative_humidity_spring","relative_humidity_summer","relative_humidity_inFall",
 					 "primary_forest_areas","primary_non-forest_areas","secondary_forest_areas","secondary_non-forest_areas",
 					 "croplands_all_categories","managed_pasture_and_rangeland","human_pop_density_log10")
-envVariables_list = list()
+envVariables_list = list(); i = 1
 for (i in 1:length(models_isimip3a))
 	{
 		temperature = brick(paste0("Environmental_rasters/ISIMIP3a/tas_day_obsclim_historical_",models_isimip3a[i],"_2000_2019_ymonmean.nc"))
@@ -294,18 +294,23 @@ for (i in 1:dim(species)[1])
 				write.csv(tab, paste0(directory,"/",species[i,1],".csv"), row.names=F, quote=F)
 			}
 	}
-observations_list = list()
+observations_list = list(); t = 1
 for (t in 1:length(periods))
 	{
-		species = gsub(" ","_",unique(data$TAXON)); species = species[which(species!="Bombus_xanthopus")]
-		species = data.frame(species[order(species)]); indices = c() # B. xanthopus discarded because insular
-		c = 0; observations = list(); minYear = periods[[t]][1]; maxYear = periods[[t]][2]
+		species = gsub(" ","_",unique(data$TAXON))
+		species = species[which(species!="Bombus_xanthopus")] # discarded because insular (in Corsica)
+		species = species[which(species!="Bombus_cullumanus")] # discarded because mainly in Middle-Eas/Asia
+		species = species[which(species!="Bombus_laesus")] # discarded because mainly in Middle-Eas/Asia
+		species = species[which(species!="Bombus_haematurus")] # discarded because mainly in Middle-Eas/Asia
+		species = species[which(species!="Bombus_inexspectatus")] # discarded because associated with a distribution
+		species = data.frame(species[order(species)]); indices = c(); c = 0 # too restricted compared to its host
+		observations = list(); minYear = periods[[t]][1]; maxYear = periods[[t]][2]
 		for (i in 1:dim(species)[1])
 			{
 				tab1 = read.csv(paste0(directory,"/",species[i,1],".csv"), header=T)
 				tab2 = tab1[which((tab1[,"year"]>=minYear)&(tab1[,"year"]<=maxYear)),c("longitude","latitude")]
 				tab3 = tab2[which(!is.na(raster::extract(nullRaster,tab2))),]; coordinates = rep(NA, dim(tab3)[1])
-				for (j in 1:dim(tab3)[1]) coordinates[j] = paste0(tab3[j,"longitude"],"_",tab3[j,"longitude"])
+				for (j in 1:dim(tab3)[1]) coordinates[j] = paste0(tab3[j,"longitude"],"_",tab3[j,"latitude"])
 				if (length(unique(coordinates)) >= 30)
 					{
 						c = c+1; indices = c(indices, i); observations[[c]] = tab3
@@ -314,7 +319,7 @@ for (t in 1:length(periods))
 		species = data.frame(species[indices,]); colnames(species) = "species"; observations_list[[t]] = observations
 		if (savingPlots == TRUE)
 			{
-				pdf(paste0("All_the_figures_&_SI/Bombus_data_1on2_NEW.pdf"), width=8, height=(((5.5*2)/6)*5))
+				pdf(paste0("All_the_figures_&_SI/Bombus_data_1on2_NEW.pdf"), width=8, height=((5.8/3)*5))
 				par(mfrow=c(5,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.4, col="gray30")
 				for (i in 1:30)
 					{
@@ -325,9 +330,9 @@ for (t in 1:length(periods))
 						mtext(gsub("Bombus_","B. ",species[i,1]), side=3, line=-2, at=0, cex=0.50, col="gray30")
 					}
 				dev.off()
-				pdf(paste0("All_the_figures_&_SI/Bombus_data_2on2_NEW.pdf"), width=8, height=(((5.5*2)/6)*5))
-				par(mfrow=c(5,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.4, col="gray30")
-				for (i in 31:53)
+				pdf(paste0("All_the_figures_&_SI/Bombus_data_2on2_NEW.pdf"), width=8, height=((5.8/3)*4))
+				par(mfrow=c(4,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.4, col="gray30")
+				for (i in 31:49)
 					{
 						# plot(nullRaster, col=NA, axes=F, ann=F, box=F, legend=F)
 						plot(europe3, lwd=0.8, border="gray50", col="gray90")
