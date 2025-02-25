@@ -20,8 +20,8 @@ library(pgirmess)
 library(phytools)
 library(RColorBrewer)
 library(raster)
-library(rgdal)
-library(rgeos)
+# library(rgdal)
+# library(rgeos)
 library(seqinr)
 library(sp)
 library(vioplot)
@@ -298,11 +298,13 @@ observations_list = list(); t = 1
 for (t in 1:length(periods))
 	{
 		species = gsub(" ","_",unique(data$TAXON))
-		species = species[which(species!="Bombus_xanthopus")] # discarded because insular (in Corsica)
 		species = species[which(species!="Bombus_cullumanus")] # discarded because mainly in Middle-Eas/Asia
-		species = species[which(species!="Bombus_laesus")] # discarded because mainly in Middle-Eas/Asia
 		species = species[which(species!="Bombus_haematurus")] # discarded because mainly in Middle-Eas/Asia
 		species = species[which(species!="Bombus_inexspectatus")] # discarded because associated with a distribution
+		species = species[which(species!="Bombus_laesus")] # discarded because mainly in Middle-Eas/Asia
+		species = species[which(species!="Bombus_magnus")] # discarded because insular (in Corsica)
+		species = species[which(species!="Bombus_schrencki")] # discarded because insular (in Corsica)
+		species = species[which(species!="Bombus_xanthopus")] # discarded because insular (in Corsica)
 		species = data.frame(species[order(species)]); indices = c(); c = 0 # too restricted compared to its host
 		observations = list(); minYear = periods[[t]][1]; maxYear = periods[[t]][2]
 		for (i in 1:dim(species)[1])
@@ -319,9 +321,9 @@ for (t in 1:length(periods))
 		species = data.frame(species[indices,]); colnames(species) = "species"; observations_list[[t]] = observations
 		if (savingPlots == TRUE)
 			{
-				pdf(paste0("All_the_figures_&_SI/Bombus_data_1on2_NEW.pdf"), width=8, height=((5.8/3)*5))
-				par(mfrow=c(5,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.4, col="gray30")
-				for (i in 1:30)
+				pdf(paste0("All_the_figures_&_SI/Bombus_data_1on2_NEW.pdf"), width=8, height=((5.8/3)*4))
+				par(mfrow=c(4,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.4, col="gray30")
+				for (i in 1:24)
 					{
 						# plot(nullRaster, col=NA, axes=F, ann=F, box=F, legend=F)
 						plot(europe3, lwd=0.8, border="gray50", col="gray90")
@@ -332,7 +334,7 @@ for (t in 1:length(periods))
 				dev.off()
 				pdf(paste0("All_the_figures_&_SI/Bombus_data_2on2_NEW.pdf"), width=8, height=((5.8/3)*4))
 				par(mfrow=c(4,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.4, col="gray30")
-				for (i in 31:49)
+				for (i in 25:47)
 					{
 						# plot(nullRaster, col=NA, axes=F, ann=F, box=F, legend=F)
 						plot(europe3, lwd=0.8, border="gray50", col="gray90")
