@@ -16,7 +16,6 @@ library(lubridate)
 library(ncdf4)
 library(ncf)
 library(picante)
-library(pgirmess)
 library(phytools)
 library(RColorBrewer)
 library(raster)
@@ -127,12 +126,12 @@ for (i in 1:length(models_isimip3a))
 		envVariables[[7]] = precipitation_summer; envVariables[[8]] = precipitation_inFall
 		envVariables[[9]] = relative_humidity_winter; envVariables[[10]] = relative_humidity_spring
 		envVariables[[11]] = relative_humidity_summer; envVariables[[12]] = relative_humidity_inFall
-		envVariables[[13]] = land_covers2[[4]] # primary forest areas
-		envVariables[[14]] = land_covers2[[5]] # primary non-forest areas
-		envVariables[[15]] = land_covers2[[6]] # secondary forest areas
-		envVariables[[16]] = land_covers2[[7]] # secondary non-forest areas
-		envVariables[[17]] = land_covers2[[1]] # croplands (all catergories)
-		envVariables[[18]] = land_covers2[[2]] # managed pasture + rangeland
+		envVariables[[13]] = land_covers3[[4]] # primary forest areas
+		envVariables[[14]] = land_covers3[[5]] # primary non-forest areas
+		envVariables[[15]] = land_covers3[[6]] # secondary forest areas
+		envVariables[[16]] = land_covers3[[7]] # secondary non-forest areas
+		envVariables[[17]] = land_covers3[[1]] # croplands (all catergories)
+		envVariables[[18]] = land_covers3[[2]] # managed pasture + rangeland
 		envVariables[[19]] = population_log10 # human population (log-transformed)
 		for (j in 1:length(envVariables)) envVariables[[j]] = crop(envVariables[[j]], extentOfStudyArea, snap="out")
 		for (j in 1:12) envVariables[[j]][which(is.na(envVariables[[19]][]))] = NA 
@@ -298,12 +297,12 @@ observations_list = list(); t = 1
 for (t in 1:length(periods))
 	{
 		species = gsub(" ","_",unique(data$TAXON))
-		species = species[which(species!="Bombus_cullumanus")] # discarded because mainly in Middle-Eas/Asia
-		species = species[which(species!="Bombus_haematurus")] # discarded because mainly in Middle-Eas/Asia
+		species = species[which(species!="Bombus_cullumanus")] # discarded because mainly in Middle-East/Asia
+		species = species[which(species!="Bombus_haematurus")] # discarded because mainly in Middle-East/Asia
 		species = species[which(species!="Bombus_inexspectatus")] # discarded because associated with a distribution
-		species = species[which(species!="Bombus_laesus")] # discarded because mainly in Middle-Eas/Asia
-		species = species[which(species!="Bombus_magnus")] # discarded because insular (in Corsica)
-		species = species[which(species!="Bombus_schrencki")] # discarded because insular (in Corsica)
+		species = species[which(species!="Bombus_laesus")] # discarded because mainly in Middle-East/Asia
+		species = species[which(species!="Bombus_magnus")] # discarded because associated with a sampling bias
+		species = species[which(species!="Bombus_schrencki")] # discarded because with an eastern European distribution
 		species = species[which(species!="Bombus_xanthopus")] # discarded because insular (in Corsica)
 		species = data.frame(species[order(species)]); indices = c(); c = 0 # too restricted compared to its host
 		observations = list(); minYear = periods[[t]][1]; maxYear = periods[[t]][2]
@@ -345,4 +344,267 @@ for (t in 1:length(periods))
 				dev.off()
 			}
 	}
+
+# 3. Boosted regression trees (BRT) analyses with standard or spatial cross-validation
+
+samplingPtsMinDist = function(observations, minDist=500, nberOfPoints=5)
+	{
+		indices = rep(NA, nberOfPoints)
+		selection_list = list(1:nrow(observations)) 
+  		indices[1] = sample(1:dim(observations)[1], 1)
+		dists = list(spDistsN1(as.matrix(observations), as.matrix(observations[indices[1],]), longlat=T))
+		for (i in 2:nberOfPoints)
+			{
+    			selection = which(dists[[(i-1)]] > minDist)
+    			if (length(selection) == 0)
+    				{
+    					stop("Restarts the function with a smaller minimum distance")
+					}
+    			selection_list[[i]] = selection
+    			test = table(unlist(selection_list))
+    			indices_minDist = as.numeric(names(which(test==i)))
+    			indices[i] = sample(indices_minDist, 1)   
+				dists[[i]] = spDistsN1(as.matrix(observations), as.matrix(observations[indices[i],]), longlat=T)
+			}
+		return(indices)
+	}
+foldSelection = function(observations, selectedPoints)
+	{
+		fold_selection = sapply(1:nrow(observations), function(i) which.min(spDistsN1(as.matrix(selectedPoints), as.matrix(observations[i,]), longlat=T)))
+		return(fold_selection)
+	}
+nullRaster = envVariables_list[[1]][[1]]; nullRaster[!is.na(nullRaster[])] = 1
+names(nullRaster) = "nullRaster"; allObservationsOnTheContinent = c()
+for (i in 1:dim(species)[1])
+	{
+		allObservationsOnTheContinent = rbind(allObservationsOnTheContinent, observations_list[[1]][[i]])
+	}
+backgroundCells = unique(raster::extract(nullRaster, allObservationsOnTheContinent, cellnumbers=T))
+background = nullRaster; background[!(1:length(background[]))%in%backgroundCells] = NA
+newAnalyses = TRUE; spatialCrossValidation1 = FALSE; spatialCrossValidation2 = TRUE; savingCorrelogram = FALSE
+nberOfReplicates = 30; all_data = list(); occurrence_data_summary = matrix(nrow=dim(species)[1], ncol=2)
+row.names(occurrence_data_summary) = species[,1]; colnames(occurrence_data_summary) = c("n","n_filtered")
+rasters_stack = stack(envVariables_list[[1]]); names(rasters_stack) = envVariableNames
+if (!file.exists("BRT_data_frames.rds"))
+	{
+		for (i in 1:dim(species)[1])
+			{
+				minYear = periods[[1]][1]; maxYear = periods[[1]][2]
+				observations = observations_list[[1]][[i]]; data_to_discard = c()
+				for (j in 1:length(rasters_stack@layers)) # to discard the observations that do fall within the rasters
+					{
+						data_to_discard = c(data_to_discard, which(is.na(raster::extract(rasters_stack[[j]],observations))))
+					}
+				data_to_discard = unique(data_to_discard); data_to_discard = data_to_discard[order(data_to_discard)]
+				if (length(data_to_discard) > 0) observations = observations[which(!c(1:dim(data)[1])%in%data_to_discard),]
+				presenceCells = unique(raster::extract(background, observations, cellnumbers=T))
+				targetSpeciesBackground = background; targetSpeciesBackground[(1:length(targetSpeciesBackground[]))%in%presenceCells] = NA
+				studyAreaMinusBackground = nullRaster; studyAreaMinusBackground[which(targetSpeciesBackground[]==1)] = NA
+				cellIDs = unique(cellFromXY(rasters_stack[[1]], observations)); datas = list()
+				occurrence_data_summary[i,c("n","n_filtered")] = cbind(dim(observations)[1], length(cellIDs))
+				n_PAs_1 = length(cellIDs); n_background = length(which(!is.na(targetSpeciesBackground[])))
+				for (j in 1:nberOfReplicates)
+					{
+						if (n_background > n_PAs_1)
+							{
+								pseudoAbsences = xyFromCell(targetSpeciesBackground, sample(which(!is.na(values(targetSpeciesBackground))), n_PAs_1, replace=F))
+							}	else	{
+								n_PAs_2 = n_PAs_1-n_background
+								pseudoAbsences1 = xyFromCell(targetSpeciesBackground, sample(which(!is.na(values(targetSpeciesBackground))), n_background, replace=F))
+								pseudoAbsences2 = xyFromCell(studyAreaMinusBackground, sample(which(!is.na(values(studyAreaMinusBackground))), n_PAs_2 , replace=F))
+								pseudoAbsences = rbind(pseudoAbsences1, pseudoAbsences2); colnames(pseudoAbsences) = colnames(observations)
+							}
+						data1 = cbind(rep(1,dim(observations)[1]),observations); colnames(data1) = c("response","x","y")
+						data2 = cbind(rep(0,dim(pseudoAbsences)[1]),pseudoAbsences); colnames(data2) = c("response","x","y")
+						data = rbind(data1, data2); data = cbind(data, raster::extract(rasters_stack, data[,2:3]))
+						colnames(data) = c("response","x","y",envVariableNames); datas[[j]] = data
+					}
+				all_data[[i]] = datas
+			}
+		saveRDS(all_data, "BRT_data_frames.rds")
+	}
+all_data = readRDS("BRT_data_frames.rds")
+if (savingCorrelogram == TRUE)
+	{
+		for (i in 1:dim(species)[1])
+			{		
+				datas = all_data[[i]]; correlograms = list()
+				for (j in 1:10)
+					{
+						correlograms[[j]] = ncf::correlog(datas[[j]][,"x"], datas[[j]][,"y"], datas[[j]][,"response"], na.rm=T, increment=250, resamp=0, latlon=T)
+					}
+				pdf(paste0("Correlogram_graphics/",species[i,1],".pdf"), width=4.5, height=3); par(mar=c(2.7,2.8,1.2,1.2))
+				plot(correlograms[[1]]$mean.of.class[-1], correlograms$correlations[[1]][-1], ann=F, axes=F, lwd=0.2, cex=0.5, col=NA, ylim=c(-0.7,0.5), xlim=c(0,2500))
+				for (j in 1:10)
+					{
+						lines(correlograms[[j]]$mean.of.class[-1], correlograms[[j]]$correlation[-1], lwd=0.1, col="gray30")
+					}
+				abline(h=0, lwd=0.5, col="red", lty=2)
+				axis(side=1, lwd.tick=0.2, cex.axis=0.6, lwd=0.2, tck=-0.020, col.axis="gray30", mgp=c(0,-0.05,0), at=seq(0,3000,500), labels=c("0","500","1000","1500","2000","2500","3000"))
+				axis(side=2, lwd.tick=0.2, cex.axis=0.6, lwd=0.2, tck=-0.020, col.axis="gray30", mgp=c(0,0.18,0), at=seq(-0.8,0.6,0.2), labels=c("","-0.6","-0.4","-0.2","0","0.2","0.4",""))
+				title(xlab="Distance (km)", cex.lab=0.7, mgp=c(0.9,0,0), col.lab="gray30")
+				title(ylab="Correlation", cex.lab=0.7, mgp=c(1.2,0,0), col.lab="gray30")
+				dev.off()
+			}
+	}
+if (!file.exists(paste0("Occurrence_data.csv")))
+	{
+		write.csv(occurrence_data_summary, "Occurrence_data.csv", quote=F)
+	}
+if (newAnalyses == TRUE) { for (i in 1:dim(species)[1]) {
+		theRanges = c(500,500)*1000 # distance in meters
+		gbm.x = gsub("\\.","-",names(rasters_stack))
+		gbm.y = "response"
+		offset = NULL
+		tree.complexity = 5 # "tc" = number of nodes in the trees
+		learning.rate = 0.005 # "lr" = contribution of each tree to the growing model
+		bag.fraction = 0.80 # proportion of data used to train a given tree
+		site.weights = rep(1, dim(all_data[[i]][[1]])[1])
+		var.monotone = rep(0, length(gbm.x))
+		n.folds = 5
+		prev.stratify = TRUE
+		family = "bernoulli"
+		n.trees = 10 # initial number of trees
+		step.size = 5 # interval at which the predictive deviance is computed and logged
+					  # (at each interval, the folds are successively used as test data set
+					  # nd the remaining folds as training data sets to compute the deviance)
+		max.trees = 10000 # maximum number of trees that will be considered
+		tolerance.method = "auto"
+		tolerance = 0.001
+		plot.main = TRUE
+		plot.folds = FALSE
+		verbose = TRUE
+		silent = FALSE
+		keep.fold.models = FALSE
+		keep.fold.vector = FALSE
+		keep.fold.fit = FALSE
+		showingFoldsPlot = FALSE
+		brt_model_ccvs = list() # classic cross-validations (CCVs)
+		brt_model_scv1 = list() # spatial cross-validations 1 (SCV1)
+		brt_model_scv2 = list() # spatial cross-validations 2 (SCV2)
+		if (spatialCrossValidation2 == TRUE)	
+			{
+				if (spatialCrossValidation1 == TRUE)
+					{
+						AUCs = matrix(nrow=nberOfReplicates, ncol=3); colnames(AUCs) = c("CCV_AUC","SCV1_AUC","SCV2_AUC")
+					}	else	{
+						AUCs = matrix(nrow=nberOfReplicates, ncol=2); colnames(AUCs) = c("CCV_AUC","SCV2_AUC")
+					}
+			}	else	{
+				if (spatialCrossValidation1 == TRUE)
+					{
+						AUCs = matrix(nrow=nberOfReplicates, ncol=2); colnames(AUCs) = c("CCV_AUC","SCV1_AUC")
+					}	else	{
+						AUCs = matrix(nrow=nberOfReplicates, ncol=1); colnames(AUCs) = c("CCV_AUC")
+					}
+			}
+		for (j in 1:nberOfReplicates)
+			{
+				# BRT with classic (standard) cross-validation (CCV):
+				pdf(file=paste0("BRT_projection_files/BRT_models/",species[i,1],"_CCV_replicate_",j,".pdf"))
+				data = all_data[[i]][[j]]; n.trees = 10; learning.rate = 0.005; step.size = 5; fold.vector = NULL; worked = FALSE
+				# while (worked == FALSE)
+					# {
+						# trycatch = tryCatch(
+							# {
+								brt_model_ccvs[[j]] = gbm.step(data, gbm.x, gbm.y, offset, fold.vector, tree.complexity, learning.rate, bag.fraction, site.weights,
+									var.monotone, n.folds, prev.stratify, family, n.trees, step.size, max.trees, tolerance.method, tolerance, plot.main, plot.folds,
+									verbose, silent, keep.fold.models, keep.fold.vector, keep.fold.fit); # summary(brt_model_scv) # gbm.plot(brt_model_scv, plot.layout=c(4,4))
+							# },	error = function(cond) {
+							# },	warning = function(cond) {
+							# },	finally = {
+							# })
+						# if (length(brt_model_ccvs) == j) worked = TRUE
+					# }
+				dev.off()
+				AUCs[j,1] = brt_model_ccvs[[j]]$cv.statistics$discrimination.mean # mean test AUC (from the AUCs computed on each fold tested as test data in the CCV)
+				if (spatialCrossValidation1 == TRUE)
+					{
+						# BRT with spatial (geographic) cross-validation (SCV) based on the folds generation of Dhingra, Artois et al. (2016, eLife):
+						folds_with_similar_sizes = FALSE; c = 0
+						while (folds_with_similar_sizes == FALSE) # while loop to select a partition where the x folds gather at least
+							{									  # proportion = (1/(x+1)) of the total number of presence points
+								data_presence = data[which(data[,1]==1),]; c = c+1; # print(c)
+								fivePoints = samplingPtsMinDist(data_presence[,c("x","y")], minDist=200, nberOfPoints=n.folds)
+								fold.vector = foldSelection(data[,c("x","y")], selectedPoints=data_presence[fivePoints,c("x","y")])
+								fold.vector_presences = fold.vector[which(data[,1]==1)]
+								counts = hist(fold.vector_presences, plot=F)$counts
+								props = counts[which(counts > 0)]/sum(counts); print(round(props,2))
+								if (min(props) > (1/(n.folds*2))) folds_with_similar_sizes = TRUE
+							}
+						if (showingFoldsPlot == TRUE)
+							{
+								par(mar=c(0,0,0,0), oma=c(0.0,3.6,0.0,0.0), mgp=c(0,0.4,0), lwd=0.2, bty="o")
+								cols = c("olivedrab3","tan3","steelblue3","orange1","tomato2","mediumseagreen")[fold.vector]
+								plot(backgrounds[[1]], col="gray90", useRaster=T, colNA=NA, box=F, axes=F, legend=F)
+								pchs = c(16,3)[data[,1]+1]; cexs = c(0.25,0.5)[data[,1]+1]
+								points(data[,c("x","y")], col=cols, pch=pchs, cex=cexs, lwd=0.7)
+							}
+						n.trees = 10; learning.rate = 0.001; step.size = 2; worked = FALSE
+						pdf(file=paste0("BRT_projection_files/BRT_models/",species[i,1],"_SCV1_replicate_",j,".pdf"))
+						# while (worked == FALSE)
+							# {
+								# trycatch = tryCatch(
+									# {
+										brt_model_scv1[[j]] = gbm.step(data, gbm.x, gbm.y, offset, fold.vector, tree.complexity, learning.rate, bag.fraction, site.weights,
+											var.monotone, n.folds, prev.stratify, family, n.trees, step.size, max.trees, tolerance.method, tolerance, plot.main, plot.folds,
+											verbose, silent, keep.fold.models, keep.fold.vector, keep.fold.fit)
+									# },	error = function(cond) {
+									# },	warning = function(cond) {
+									# },	finally = {
+									# })
+								# if (length(brt_model_scv1) == j) worked = TRUE
+							# }
+						dev.off()
+						AUCs[j,"SCV1_AUC"] = brt_model_scv1[[j]]$cv.statistics$discrimination.mean # mean test AUC (from the AUCs computed on each fold tested as test data in the SCV)		
+					}
+				if (spatialCrossValidation2 == TRUE)
+					{
+						# BRT with spatial (geographic) cross-validation (SCV) based on the blocks generation of Valavi et al. (2019, MEE):
+						spdf = SpatialPointsDataFrame(data[c("x","y")], data[,c(1,4:dim(data)[2])], proj4string=crs(nullRaster)); worked = FALSE
+						# while (worked == FALSE)
+							# {
+								# trycatch = tryCatch(
+									# {
+										myblocks = NULL
+										myblocks = spatialBlock(spdf, species="response", rasterLayer=nullRaster, k=n.folds, theRange=theRanges[1], selection="random")
+									# },	error = function(cond) {
+									# },	finally = {
+									# })
+								# if (!is.null(myblocks)) worked = TRUE
+							# }
+						n.trees = 10; learning.rate = 0.005; step.size = 5; fold.vector = myblocks$foldID
+						pdf(file=paste0("BRT_projection_files/BRT_models/",species[i,1],"_SCV2_replicate_",j,".pdf"))
+						brt_model_scv2[[j]] = gbm.step(data, gbm.x, gbm.y, offset, fold.vector, tree.complexity, learning.rate, bag.fraction, site.weights,
+							var.monotone, n.folds, prev.stratify, family, n.trees, step.size, max.trees, tolerance.method, tolerance, plot.main, plot.folds,
+							verbose, silent, keep.fold.models, keep.fold.vector, keep.fold.fit); # summary(brt_model_scv) # gbm.plot(brt_model_scv, plot.layout=c(4,4))
+						dev.off()
+						AUCs[j,"SCV2_AUC"] = brt_model_scv2[[j]]$cv.statistics$discrimination.mean # mean test AUC (from the AUCs computed on each fold tested as test data in the SCV)
+					}
+			}
+		saveRDS(brt_model_ccvs, paste0("BRT_projection_files/BRT_models/B_",species[i,1],"_models_CCV.rds"))
+		if (spatialCrossValidation1 == TRUE)	 saveRDS(brt_model_scv1, paste0("BRT_projection_files/BRT_models/B_",species[i,1],"_models_SCV1.rds"))
+		if (spatialCrossValidation2 == TRUE) saveRDS(brt_model_scv2, paste0("BRT_projection_files/BRT_models/B_",species[i,1],"_models_SCV2.rds"))
+		write.csv(AUCs, paste0("BRT_projection_files/BRT_models/B_",species[i,1],"_CCV_SCV_AUCs.csv"), row.names=F, quote=F)
+	}}
+if (!file.exists(paste0("Occurrence_data.csv")))
+	{
+		write.csv(occurrence_data_summary, "Occurrence_data.csv", quote=F)
+	}
+if (!file.exists(paste0("All_AUC_values.csv")))
+	{
+		AUC_values = matrix(nrow=dim(species)[1], ncol=3)
+		row.names(AUC_values) = species[,"species"]
+		colnames(AUC_values) = c("CCV","SCV1","SCV2")
+		for (i in 1:dim(species)[1])
+			{
+				tab = read.csv(paste0("BRT_projection_files/BRT_models/B_",species[i,"species"],"_CCV_SCV_AUCs.csv"), head=T)
+				for (j in 1:dim(tab)[2])
+					{
+						AUC_values[i,j] = paste0(round(mean(tab[,j]),3)," (",round(sd(tab[,j]),3),")")
+					}
+			}
+		write.csv(AUC_values, "All_AUC_values.csv", quote=F)
+	}
+AUC_values = read.csv("All_AUC_values.csv", head=T)
 
