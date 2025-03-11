@@ -26,7 +26,7 @@ library(sp)
 library(vioplot)
 
 directory = "Bombus_obs_111224"; savingPlots = FALSE
-timePeriods = c("2000_2019"); periods = list(c(2000,2020))
+timePeriods = c("2000_2019"); periods = list(c(2000,2019))
 data = readRDS(paste0(directory,"/",directory,".rds"))
 species = gsub(" ","_",unique(data$TAXON))
 species = data.frame(species[order(species)])
