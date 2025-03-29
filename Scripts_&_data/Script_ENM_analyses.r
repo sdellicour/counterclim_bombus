@@ -355,7 +355,7 @@ for (i in 1:dim(species)[1])
 	}
 backgroundCells = unique(raster::extract(nullRaster, allObservationsOnTheContinent, cellnumbers=T))
 background = nullRaster; background[!(1:length(background[]))%in%backgroundCells] = NA
-newAnalyses = TRUE; spatialCrossValidation1 = FALSE; spatialCrossValidation2 = TRUE; savingCorrelogram = FALSE
+newAnalyses = TRUE; spatialCrossValidation1 = FALSE; spatialCrossValidation2 = TRUE
 nberOfReplicates = 10; occurrence_data_summary = matrix(nrow=dim(species)[1], ncol=2)
 row.names(occurrence_data_summary) = species[,1]; colnames(occurrence_data_summary) = c("n","n_filtered")
 if (!file.exists("BRT_data_frames.rds"))
@@ -401,6 +401,7 @@ if (!file.exists(paste0("Occurrence_data.csv")))
 		write.csv(occurrence_data_summary, "Occurrence_data.csv", quote=F)
 	}
 all_data = readRDS("BRT_data_frames.rds")
+savingCorrelogram = FALSE; blockSizeExplorationByBlockCV = FALSE
 if (savingCorrelogram == TRUE)
 	{
 		for (i in 1:dim(species)[1])
@@ -408,13 +409,13 @@ if (savingCorrelogram == TRUE)
 				if (!file.exists(paste0("Correlogram_graphics/",species[i,1],".pdf")))
 					{
 						datas = all_data[[i]]; correlograms = list()
-						for (j in 1:10)
+						for (j in 1:nberOfReplicates)
 							{
 								correlograms[[j]] = ncf::correlog(datas[[j]][,"x"], datas[[j]][,"y"], datas[[j]][,"response"], na.rm=T, increment=100, resamp=0, latlon=T)
 							}
 						pdf(paste0("Correlogram_graphics/",species[i,1],".pdf"), width=4.5, height=3); par(mar=c(2.7,2.8,1.2,1.2))
 						plot(correlograms[[1]]$mean.of.class[-1], correlograms$correlations[[1]][-1], ann=F, axes=F, lwd=0.2, cex=0.5, col=NA, ylim=c(-0.7,0.5), xlim=c(0,2500))
-						for (j in 1:10)
+						for (j in 1:nberOfReplicates)
 							{
 								lines(correlograms[[j]]$mean.of.class[-1], correlograms[[j]]$correlation[-1], lwd=0.1, col="gray30")
 							}
@@ -427,6 +428,32 @@ if (savingCorrelogram == TRUE)
 					}
 			}
 	}
+if (blockSizeExplorationByBlockCV == TRUE)
+	{
+		buffer = list(); ranges1 = matrix(nrow=dim(species)[1], ncol=1); row.names(ranges1) = species[,1]
+		for (i in 2:length(envVariables_list[[1]])) buffer[[i-1]] = terra::rast(envVariables_list[[1]][[i]])
+		for (i in 2:length(envVariables_list[[1]])) names(buffer[[i-1]]) = envVariableNames[i]
+		test = cv_spatial_autocor(r=terra::rast(buffer), # a SpatRaster object or path to files
+								  num_sample=10000, plot=T) # num_sample: number of cells to be used
+		for (i in 1:dim(species)[1])
+			{
+				ranges2 = rep(NA, nberOfReplicates) 
+				for (j in 1:nberOfReplicates)
+					{
+						pa_data = sf::st_as_sf(data.frame(all_data[[i]][[j]]), coords=c("x","y"), crs=4326)
+						trycatch = tryCatch(
+							{
+								ranges2[j] = cv_spatial_autocor(x=pa_data, column="response", plot=F)$range
+							},	error = function(cond) {
+							},	warning = function(cond) {
+							},	finally = {
+							})
+					}
+				cat(i,", ",gsub("_","",species[i,]),": ",length(which(is.na(ranges2)))," \"NA\"","\n",sep="")
+				ranges1[i,1] = round(mean(ranges2, na.rm=T))
+			}
+		ranges = ranges1
+	}
 samplingPtsMinDist = function(observations, minDist=500, nberOfPoints=5)
 	{
 		indices = rep(NA, nberOfPoints)
@@ -435,15 +462,15 @@ samplingPtsMinDist = function(observations, minDist=500, nberOfPoints=5)
 		dists = list(spDistsN1(as.matrix(observations), as.matrix(observations[indices[1],]), longlat=T))
 		for (i in 2:nberOfPoints)
 			{
-    			selection = which(dists[[(i-1)]] > minDist)
-    			if (length(selection) == 0)
-    				{
-    					stop("Restarts the function with a smaller minimum distance")
+				selection = which(dists[[(i-1)]] > minDist)
+				if (length(selection) == 0)
+					{
+						stop("Restarts the function with a smaller minimum distance")
 					}
-    			selection_list[[i]] = selection
-    			test = table(unlist(selection_list))
-    			indices_minDist = as.numeric(names(which(test==i)))
-    			indices[i] = sample(indices_minDist, 1)   
+				selection_list[[i]] = selection
+				test = table(unlist(selection_list))
+				indices_minDist = as.numeric(names(which(test==i)))
+				indices[i] = sample(indices_minDist, 1)   
 				dists[[i]] = spDistsN1(as.matrix(observations), as.matrix(observations[indices[i],]), longlat=T)
 			}
 		return(indices)
@@ -592,4 +619,187 @@ if (newAnalyses == TRUE) { for (h in 1:length(models_isimip3a)) { for (i in 1:di
 		if (spatialCrossValidation2 == TRUE) saveRDS(brt_model_scv2, paste0("BRT_projection_files/BRT_models/",species[i,1],"_",models_isimip3a_names[h],"_",nberOfReplicates,"_SCV2.rds"))
 		write.csv(AUCs, paste0("BRT_projection_files/BRT_models/",species[i,1],"_",models_isimip3a_names[h],"_AUCs.csv"), row.names=F, quote=F)
 	}}}
+AUC_values = matrix(nrow=dim(species)[1], ncol=8); row.names(AUC_values) = species[,"species"]; colNames = c()
+for (h in 1:length(models_isimip3a))
+	{
+		colNames = c(colNames, paste0("CCV_",models_isimip3a_names[h]), paste0("SCV2_",models_isimip3a_names[h]))
+		for (i in 1:dim(species)[1])
+			{
+				tab = read.csv(paste0("BRT_projection_files/BRT_models/",species[i,"species"],"_",models_isimip3a_names[h],"_AUCs.csv"), head=T)
+				for (j in 1:dim(tab)[2])
+					{
+						meanV = round(mean(tab[,j]),3); sdV = round(sd(tab[,j]),3)
+						if (nchar(meanV) == 4) meanV = paste0(meanV,"0")
+						if (nchar(meanV) == 3) meanV = paste0(meanV,"00")
+						if (nchar(meanV) == 1) meanV = paste0(meanV,".000")
+						if (nchar(sdV) == 4) sdV = paste0(sdV,"0")
+						if (nchar(sdV) == 3) sdV = paste0(sdV,"00")
+						if (nchar(sdV) == 1) sdV = paste0(sdV,".000")
+						AUC_values[i,((h-1)*2)+j] = paste0(meanV," (",sdV,")")
+					}
+			}
+	}
+if (!file.exists(paste0("All_AUC_values.csv")))
+	{
+		colnames(AUC_values) = colNames; write.csv(AUC_values, "All_AUC_values.csv", quote=F)
+	}
+AUC_values = read.csv("All_AUC_values.csv", head=T)
+
+# 4. Computation of the prevalence-pseudoabsence-calibrated Sørensen index
+
+	# - computation performed according to the formulas of Leroi et al. (2018, J. Biogeography)
+	# - optimisation of the threshold with a 0.01 step increment according to Li & Guo (2013, Ecography)
+
+if (!file.exists(paste0("All_SIppc_values.csv")))
+	{
+		tab = matrix(nrow=dim(species)[1], ncol=8); row.names(tab) = species[,1]; tabs_list1 = list(); colNames = c()
+		for (h in 1:length(models_isimip3a))
+			{
+				colNames = c(colNames, paste0("SIppc_",models_isimip3a_names[h]), paste0("OptTres_",models_isimip3a_names[h]))
+				rasters_stack = stack(envVariables_list[[h]]); tabs_list2 = list(); background_cells = dim(backgroundCells)[1]
+				for (i in 1:dim(species)[1])
+					{
+						brt_model_scv2 = readRDS(paste0("BRT_projection_files/BRT_models/",species[i,1],"_",models_isimip3a_names[h],"_10_SCV2.rds"))
+						sorensen_ppcs = rep(NA, length(brt_model_scv2)); thresholds = rep(NA, length(brt_model_scv2)); tabs_list3 = list()
+						for (j in 1:length(brt_model_scv2))
+							{
+								tmp = matrix(nrow=101, ncol=2); tmp[,1] = seq(0,1,0.01)
+								df = brt_model_scv2[[j]]$gbm.call$dataframe
+								responses = df$response; data = df[,4:dim(df)[2]]
+								n.trees = brt_model_scv2[[j]]$gbm.call$best.trees; type = "response"; single.tree = FALSE
+								prediction = predict.gbm(brt_model_scv2[[j]], data, n.trees, type, single.tree)		
+								N = backgroundCells
+								P = sum(responses==1); A = sum(responses==0)
+								prev = P/(P+A) # proportion of recorded sites where the species is present
+								x = (P/A)*((1-prev)/prev)
+								sorensen_ppc = 0
+								for (threshold in seq(0,1,0.01))
+									{
+										TP = length(which((responses==1)&(prediction>=threshold))) # true positives
+										FN = length(which((responses==1)&(prediction<threshold))) # false negatives
+										FP_pa = length(which((responses==0)&(prediction>=threshold))) # false positives
+										sorensen_ppc_tmp = (2*TP)/((2*TP)+(x*FP_pa)+(FN))
+										tmp[which(tmp[,1]==threshold),2] = sorensen_ppc_tmp
+										if (sorensen_ppc < sorensen_ppc_tmp)
+											{
+												sorensen_ppc = sorensen_ppc_tmp
+												optimised_threshold = threshold
+											}
+									}
+								tabs_list3[[j]] = tmp
+								sorensen_ppcs[j] = sorensen_ppc
+								thresholds[j] = optimised_threshold
+							}
+						tabs_list2[[i]] = tabs_list3
+						medianV = round(median(sorensen_ppcs),2)
+						minV = round(min(sorensen_ppcs),2)
+						maxV = round(max(sorensen_ppcs),2)
+						if (nchar(medianV) == 3) medianV = paste0(medianV,"0")
+						if (nchar(medianV) == 1) medianV = paste0(medianV,".00")
+						if (nchar(minV) == 3) minV = paste0(minV,"0")
+						if (nchar(minV) == 1) minV = paste0(minV,".00")
+						if (nchar(maxV) == 3) maxV = paste0(maxV,"0")
+						if (nchar(maxV) == 1) maxV = paste0(maxV,".00")
+						tab[i,((h-1)*2)+1] = paste0(medianV," [",minV,"-",maxV,"]")
+						medianV = round(median(thresholds),2)
+						minV = round(min(thresholds),2)
+						maxV = round(max(thresholds),2)
+						if (nchar(medianV) == 3) medianV = paste0(medianV,"0")
+						if (nchar(medianV) == 1) medianV = paste0(medianV,".00")
+						if (nchar(minV) == 3) minV = paste0(minV,"0")
+						if (nchar(minV) == 1) minV = paste0(minV,".00")
+						if (nchar(maxV) == 3) maxV = paste0(maxV,"0")
+						if (nchar(maxV) == 1) maxV = paste0(maxV,".00")
+						tab[i,((h-1)*2)+2] = paste0(medianV," [",minV,"-",maxV,"]")
+					}
+				tabs_list1[[h]] = tabs_list2
+			}
+		colnames(tab) = colNames; write.csv(tab, "All_SIppc_values.csv", quote=F)		
+		pdf(paste0("All_the_figures_&_SI/SI_ppc_species_curves_NEW.pdf"), width=10, height=12)
+		par(mfrow=c(8,6), oma=c(0,0,0,0), mar=c(2.5,2.5,0.5,0.5), lwd=0.4, col="gray30")
+		for (i in 1:dim(species)[1])
+			{
+				plot(tabs_list1[[1]][[i]][[1]], col=NA, ann=F, axes=F, xlim=c(0,1), ylim=c(0,1))
+				for (j in 1:length(tabs_list1[[1]][[i]])) lines(tabs_list1[[1]][[i]][[j]], lwd=0.3, col="gray80", lty=1)
+				for (j in 1:length(tabs_list1[[2]][[i]])) lines(tabs_list1[[2]][[i]][[j]], lwd=0.3, col="gray30", lty=1)
+				axis(side=1, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.030, col.axis="gray30", mgp=c(0,0.07,0))
+				axis(side=2, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.030, col.axis="gray30", mgp=c(0,0.30,0))
+				if (i %in% c(1,7,13,19,25,31,37,43)) title(ylab=expression("SI"["ppc"]), cex.lab=0.9, mgp=c(1.3,0,0), col.lab="gray30")
+				if (i %in% c(43,44,45,46,47)) title(xlab="threshold", cex.lab=0.9, mgp=c(1.1,0,0), col.lab="gray30")
+				box(lwd=0.2, col="gray30"); mtext(paste0(species[i,1]), side=3, line=-1.3, at=0.98, cex=0.55, col="gray30", adj=1)
+			}
+		dev.off()
+	}
+
+# 5. Analyses of the relative influence of each environmental factor
+
+for (h in 1:length(models_isimip3a))
+	{
+		fileName = paste0("BRT_projection_files/RI_estimates/RI_",models_isimip3a_names[h],".csv")
+		if (!file.exists(paste0(fileName)))
+			{
+				relativeInfluences = matrix(0, nrow=dim(species)[1], ncol=length(envVariables_list[[h]]))
+				row.names(relativeInfluences) = species[,"species"]
+				for (i in 1:dim(species)[1])
+					{
+						brt_models = readRDS(paste0("BRT_projection_files/BRT_models/",species[i,1],"_",models_isimip3a_names[h],"_10_SCV2.rds"))				
+						for (j in 1:length(brt_models))
+							{
+								tab = summary(brt_models[[j]]); row.names(tab) = gsub("`","",row.names(tab))
+								# if ((i == 1)&(j == 1)) envVariableNames_tmp = rep(NA, length(envVariables_list[[h]]))
+								for (k in 1:length(envVariables_list[[h]]))
+									{
+										# if ((i == 1)&(j == 1)) envVariableNames_tmp[k] = names(envVariables_list[[h]][[k]])
+										relativeInfluences[i,k] = as.numeric(relativeInfluences[i,k]) + tab[envVariableNames[k],"rel.inf"]
+									}
+							}
+						if (i == 1) colnames(relativeInfluences) = envVariableNames
+						vS = round(as.numeric(relativeInfluences[i,])/length(brt_models),2)
+						for (j in 1:length(vS))
+							{
+								if (nchar(vS[j]) == 3) vS[j] = paste0(vS[j],"0")
+								if (!grepl("\\.",vS[j])) vS[j] = paste0(vS[j],".00")
+							}
+						relativeInfluences[i,] = vS
+					}
+				write.table(relativeInfluences, fileName, quote=F, sep=",")
+			}
+	}
+if (!file.exists("RIs_comparison.csv"))
+	{
+		fileNames = c("RI_BRT_1901-74.csv","RI_BRT_2000-14.csv")
+		meanRelativeInfluences = matrix(0, nrow=length(envVariables), ncol=3)
+		colnames(meanRelativeInfluences) = c("RI_1901-74", "RI_2000-14", "mean_abs_dif")
+		for (t in 1:2)
+			{
+				relativeInfluences = read.csv(fileNames[t], header=T)
+				if (t == 1)
+					{
+						row.names(meanRelativeInfluences) = colnames(relativeInfluences)
+					}
+				for (i in 1:dim(relativeInfluences)[2])
+					{
+						RIs = relativeInfluences[,i]
+						median = round(median(RIs),1)
+						HPD = round(HDInterval::hdi(RIs)[1:2],1)
+						CR = round(quantile(RIs,c(0.025,0.975)),1)
+						meanRelativeInfluences[i,t] = paste0(median," [",CR[1],"-",CR[2],"]")
+					}
+			}
+		for (i in 1:dim(meanRelativeInfluences)[1])
+			{
+				diffs = rep(NA, dim(relativeInfluences)[1])
+				for (j in 1:dim(relativeInfluences)[1])
+					{
+						relativeInfluence1 = read.csv(fileNames[1], header=T)[j,i]
+						relativeInfluence2 = read.csv(fileNames[2], header=T)[j,i]
+						diffs[j] = abs(relativeInfluence1-relativeInfluence2)
+					}
+				median = round(median(diffs),1)
+				HPD = round(HDInterval::hdi(diffs)[1:2],1)
+				CR = round(quantile(RIs,c(0.025,0.975)),1)
+				meanRelativeInfluences[i,3] = paste0(median," [",CR[1],"-",CR[2],"]")
+			}
+		write.csv(meanRelativeInfluences, "RIs_comparison.csv", quote=F)
+	}
 
