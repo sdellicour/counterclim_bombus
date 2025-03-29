@@ -715,18 +715,17 @@ if (!file.exists(paste0("All_SIppc_values.csv")))
 				tabs_list1[[h]] = tabs_list2
 			}
 		colnames(tab) = colNames; write.csv(tab, "All_SIppc_values.csv", quote=F)		
-		pdf(paste0("All_the_figures_&_SI/SI_ppc_species_curves_NEW.pdf"), width=10, height=12)
+		pdf(paste0("All_the_figures_&_SI/All_SI_ppc_curves_NEW.pdf"), width=10, height=12)
 		par(mfrow=c(8,6), oma=c(0,0,0,0), mar=c(2.5,2.5,0.5,0.5), lwd=0.4, col="gray30")
-		for (i in 1:dim(species)[1])
+		for (i in 1:dim(species)[1]) # only for the first ISIMIP3a model (GSWP3-W5R5)
 			{
 				plot(tabs_list1[[1]][[i]][[1]], col=NA, ann=F, axes=F, xlim=c(0,1), ylim=c(0,1))
-				for (j in 1:length(tabs_list1[[1]][[i]])) lines(tabs_list1[[1]][[i]][[j]], lwd=0.3, col="gray80", lty=1)
-				for (j in 1:length(tabs_list1[[2]][[i]])) lines(tabs_list1[[2]][[i]][[j]], lwd=0.3, col="gray30", lty=1)
-				axis(side=1, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.030, col.axis="gray30", mgp=c(0,0.07,0))
-				axis(side=2, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.030, col.axis="gray30", mgp=c(0,0.30,0))
+				for (j in 1:length(tabs_list1[[1]][[i]])) lines(tabs_list1[[2]][[i]][[j]], lwd=0.3, col="gray30", lty=1)
+				axis(side=1, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.030, col.axis="gray30", mgp=c(0,0.07,0), at=c(0,0.2,0.4,0.6,0.8,1), label=c("0","0.2","0.4","0.6","0.8","1"))
+				axis(side=2, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.030, col.axis="gray30", mgp=c(0,0.30,0), at=c(0,0.2,0.4,0.6,0.8,1), label=c("0","0.2","0.4","0.6","0.8","1"))
 				if (i %in% c(1,7,13,19,25,31,37,43)) title(ylab=expression("SI"["ppc"]), cex.lab=0.9, mgp=c(1.3,0,0), col.lab="gray30")
 				if (i %in% c(43,44,45,46,47)) title(xlab="threshold", cex.lab=0.9, mgp=c(1.1,0,0), col.lab="gray30")
-				box(lwd=0.2, col="gray30"); mtext(paste0(species[i,1]), side=3, line=-1.3, at=0.98, cex=0.55, col="gray30", adj=1)
+				box(lwd=0.2, col="gray30"); mtext(paste0(gsub("Bombus_","B. ",species[i,1])), side=3, line=-7.8, at=0.3, cex=0.55, col="gray30") #, adj=1)
 			}
 		dev.off()
 	}
