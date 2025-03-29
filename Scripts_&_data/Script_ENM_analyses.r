@@ -765,41 +765,4 @@ for (h in 1:length(models_isimip3a))
 				write.table(relativeInfluences, fileName, quote=F, sep=",")
 			}
 	}
-if (!file.exists("RIs_comparison.csv"))
-	{
-		fileNames = c("RI_BRT_1901-74.csv","RI_BRT_2000-14.csv")
-		meanRelativeInfluences = matrix(0, nrow=length(envVariables), ncol=3)
-		colnames(meanRelativeInfluences) = c("RI_1901-74", "RI_2000-14", "mean_abs_dif")
-		for (t in 1:2)
-			{
-				relativeInfluences = read.csv(fileNames[t], header=T)
-				if (t == 1)
-					{
-						row.names(meanRelativeInfluences) = colnames(relativeInfluences)
-					}
-				for (i in 1:dim(relativeInfluences)[2])
-					{
-						RIs = relativeInfluences[,i]
-						median = round(median(RIs),1)
-						HPD = round(HDInterval::hdi(RIs)[1:2],1)
-						CR = round(quantile(RIs,c(0.025,0.975)),1)
-						meanRelativeInfluences[i,t] = paste0(median," [",CR[1],"-",CR[2],"]")
-					}
-			}
-		for (i in 1:dim(meanRelativeInfluences)[1])
-			{
-				diffs = rep(NA, dim(relativeInfluences)[1])
-				for (j in 1:dim(relativeInfluences)[1])
-					{
-						relativeInfluence1 = read.csv(fileNames[1], header=T)[j,i]
-						relativeInfluence2 = read.csv(fileNames[2], header=T)[j,i]
-						diffs[j] = abs(relativeInfluence1-relativeInfluence2)
-					}
-				median = round(median(diffs),1)
-				HPD = round(HDInterval::hdi(diffs)[1:2],1)
-				CR = round(quantile(RIs,c(0.025,0.975)),1)
-				meanRelativeInfluences[i,3] = paste0(median," [",CR[1],"-",CR[2],"]")
-			}
-		write.csv(meanRelativeInfluences, "RIs_comparison.csv", quote=F)
-	}
 
