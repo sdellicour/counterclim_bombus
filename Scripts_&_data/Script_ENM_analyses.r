@@ -355,7 +355,7 @@ for (i in 1:dim(species)[1])
 	}
 backgroundCells = unique(raster::extract(nullRaster, allObservationsOnTheContinent, cellnumbers=T))
 background = nullRaster; background[!(1:length(background[]))%in%backgroundCells] = NA
-newAnalyses = TRUE; spatialCrossValidation1 = FALSE; spatialCrossValidation2 = TRUE
+newAnalyses = FALSE; spatialCrossValidation1 = FALSE; spatialCrossValidation2 = TRUE
 nberOfReplicates = 10; occurrence_data_summary = matrix(nrow=dim(species)[1], ncol=2)
 row.names(occurrence_data_summary) = species[,1]; colnames(occurrence_data_summary) = c("n","n_filtered")
 if (!file.exists("BRT_data_frames.rds"))
@@ -720,12 +720,14 @@ if (!file.exists(paste0("All_SIppc_values.csv")))
 		for (i in 1:dim(species)[1]) # only for the first ISIMIP3a model (GSWP3-W5R5)
 			{
 				plot(tabs_list1[[1]][[i]][[1]], col=NA, ann=F, axes=F, xlim=c(0,1), ylim=c(0,1))
-				for (j in 1:length(tabs_list1[[1]][[i]])) lines(tabs_list1[[2]][[i]][[j]], lwd=0.3, col="gray30", lty=1)
+				for (j in 1:length(tabs_list1[[1]][[i]])) lines(tabs_list1[[2]][[i]][[j]], lwd=0.3, col="gray50", lty=1)
 				axis(side=1, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.030, col.axis="gray30", mgp=c(0,0.07,0), at=c(0,0.2,0.4,0.6,0.8,1), label=c("0","0.2","0.4","0.6","0.8","1"))
 				axis(side=2, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.030, col.axis="gray30", mgp=c(0,0.30,0), at=c(0,0.2,0.4,0.6,0.8,1), label=c("0","0.2","0.4","0.6","0.8","1"))
 				if (i %in% c(1,7,13,19,25,31,37,43)) title(ylab=expression("SI"["ppc"]), cex.lab=0.9, mgp=c(1.3,0,0), col.lab="gray30")
-				if (i %in% c(43,44,45,46,47)) title(xlab="threshold", cex.lab=0.9, mgp=c(1.1,0,0), col.lab="gray30")
-				box(lwd=0.2, col="gray30"); mtext(paste0(gsub("Bombus_","B. ",species[i,1])), side=3, line=-7.8, at=0.3, cex=0.55, col="gray30") #, adj=1)
+				if (i %in% c(43,44,45,46,47)) title(xlab="Threshold", cex.lab=0.9, mgp=c(1.1,0,0), col.lab="gray30")
+				box(lwd=0.2, col="gray30"); SIppc = unlist(strsplit(tab[i,1]," "))[1]; threshold = unlist(strsplit(tab[i,2]," "))[1]
+				mtext(paste0(gsub("Bombus_","B. ",species[i,1])), side=3, line=-6.9, at=0.03, cex=0.55, col="gray30", adj=0)
+				mtext(paste0("SIppc = ",SIppc," (",threshold,")"), side=3, line=-7.8, at=0.03, cex=0.50, col="gray30", adj=0)
 			}
 		dev.off()
 	}
