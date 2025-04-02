@@ -6,6 +6,7 @@
 library(ade4)
 library(ape)
 library(blockCV)
+library(colorspace)
 library(diagram)
 library(dismo)
 library(gbm)
@@ -33,12 +34,14 @@ species = data.frame(species[order(species)])
 extentOfStudyArea = extent(-12,29,36,72)
 
 envVariableNames = c("temperature_winter","temperature_spring","temperature_summer","temperature_inFall",
-					 "precipitation_winter","tprecipitation_spring","precipitation_summer","precipitation_inFall",
+					 "precipitation_winter","precipitation_spring","precipitation_summer","precipitation_inFall",
 					 "relative_humidity_winter","relative_humidity_spring","relative_humidity_summer","relative_humidity_inFall",
 					 "primary_forest_areas","primary_non-forest_areas","secondary_forest_areas","secondary_non-forest_areas",
 					 "croplands_all_categories","managed_pasture_and_rangeland","human_pop_density_log10")
 models_isimip3a = c("gswp3-w5e5","20crv3","20crv3-era5","20crv3-w5e5")
 models_isimip3a_names = c("GSWP3-W5E5", "20CRv3", "20CRv3-ERA5", "20CRv3-W5E5")
+scenarios = c("obsclim","counterclim"); selectedCV = "SCV2"
+pastPeriods = c("1901-1919","1920-1939","1940-1959","1960-1979","1980-1999","2000-2019")
 
 # 1. Preparation of land cover and climatic environmental rasters
 
@@ -619,28 +622,28 @@ if (newAnalyses == TRUE) { for (h in 1:length(models_isimip3a)) { for (i in 1:di
 		if (spatialCrossValidation2 == TRUE) saveRDS(brt_model_scv2, paste0("BRT_projection_files/BRT_models/",species[i,1],"_",models_isimip3a_names[h],"_",nberOfReplicates,"_SCV2.rds"))
 		write.csv(AUCs, paste0("BRT_projection_files/BRT_models/",species[i,1],"_",models_isimip3a_names[h],"_AUCs.csv"), row.names=F, quote=F)
 	}}}
-AUC_values = matrix(nrow=dim(species)[1], ncol=8); row.names(AUC_values) = species[,"species"]; colNames = c()
-for (h in 1:length(models_isimip3a))
-	{
-		colNames = c(colNames, paste0("CCV_",models_isimip3a_names[h]), paste0("SCV2_",models_isimip3a_names[h]))
-		for (i in 1:dim(species)[1])
-			{
-				tab = read.csv(paste0("BRT_projection_files/BRT_models/",species[i,"species"],"_",models_isimip3a_names[h],"_AUCs.csv"), head=T)
-				for (j in 1:dim(tab)[2])
-					{
-						meanV = round(mean(tab[,j]),3); sdV = round(sd(tab[,j]),3)
-						if (nchar(meanV) == 4) meanV = paste0(meanV,"0")
-						if (nchar(meanV) == 3) meanV = paste0(meanV,"00")
-						if (nchar(meanV) == 1) meanV = paste0(meanV,".000")
-						if (nchar(sdV) == 4) sdV = paste0(sdV,"0")
-						if (nchar(sdV) == 3) sdV = paste0(sdV,"00")
-						if (nchar(sdV) == 1) sdV = paste0(sdV,".000")
-						AUC_values[i,((h-1)*2)+j] = paste0(meanV," (",sdV,")")
-					}
-			}
-	}
 if (!file.exists(paste0("All_AUC_values.csv")))
 	{
+		AUC_values = matrix(nrow=dim(species)[1], ncol=8); row.names(AUC_values) = species[,"species"]; colNames = c()
+		for (h in 1:length(models_isimip3a))
+			{
+				colNames = c(colNames, paste0("CCV_",models_isimip3a_names[h]), paste0("SCV2_",models_isimip3a_names[h]))
+				for (i in 1:dim(species)[1])
+					{
+						tab = read.csv(paste0("BRT_projection_files/BRT_models/",species[i,"species"],"_",models_isimip3a_names[h],"_AUCs.csv"), head=T)
+						for (j in 1:dim(tab)[2])
+							{
+								meanV = round(mean(tab[,j]),3); sdV = round(sd(tab[,j]),3)
+								if (nchar(meanV) == 4) meanV = paste0(meanV,"0")
+								if (nchar(meanV) == 3) meanV = paste0(meanV,"00")
+								if (nchar(meanV) == 1) meanV = paste0(meanV,".000")
+								if (nchar(sdV) == 4) sdV = paste0(sdV,"0")
+								if (nchar(sdV) == 3) sdV = paste0(sdV,"00")
+								if (nchar(sdV) == 1) sdV = paste0(sdV,".000")
+								AUC_values[i,((h-1)*2)+j] = paste0(meanV," (",sdV,")")
+							}
+					}
+			}
 		colnames(AUC_values) = colNames; write.csv(AUC_values, "All_AUC_values.csv", quote=F)
 	}
 AUC_values = read.csv("All_AUC_values.csv", head=T)
@@ -747,10 +750,8 @@ for (h in 1:length(models_isimip3a))
 						for (j in 1:length(brt_models))
 							{
 								tab = summary(brt_models[[j]]); row.names(tab) = gsub("`","",row.names(tab))
-								# if ((i == 1)&(j == 1)) envVariableNames_tmp = rep(NA, length(envVariables_list[[h]]))
 								for (k in 1:length(envVariables_list[[h]]))
 									{
-										# if ((i == 1)&(j == 1)) envVariableNames_tmp[k] = names(envVariables_list[[h]][[k]])
 										relativeInfluences[i,k] = as.numeric(relativeInfluences[i,k]) + tab[envVariableNames[k],"rel.inf"]
 									}
 							}
@@ -766,4 +767,360 @@ for (h in 1:length(models_isimip3a))
 				write.table(relativeInfluences, fileName, quote=F, sep=",")
 			}
 	}
+
+# 6. BRT projections based on historical and counterfactual climate simulations
+
+envVariables_list_1 = list()
+for (g in 1:length(models_isimip3a))
+	{
+		envVariables_list_2 = list()
+		for (h in 1:length(scenarios))
+			{
+				envVariables_list_3 = list()
+				for (i in 1:length(pastPeriods))
+					{
+						temperature = brick(paste0("Environmental_rasters/ISIMIP3a/tas_day_",scenarios[h],"_historical_",models_isimip3a[g],"_",gsub("-","_",pastPeriods[i]),"_ymonmean.nc"))
+						precipitation = brick(paste0("Environmental_rasters/ISIMIP3a/pr_day_",scenarios[h],"_historical_",models_isimip3a[g],"_",gsub("-","_",pastPeriods[i]),"_ymonmean.nc"))
+						relative_humidity = brick(paste0("Environmental_rasters/ISIMIP3a/hurs_day_",scenarios[h],"_historical_",models_isimip3a[g],"_",gsub("-","_",pastPeriods[i]),"_ymonmean.nc"))
+						if (pastPeriods[i] != "2000-2019")
+							{
+								land_cover = nc_open(paste0("Environmental_rasters/ISIMIP3a/landcover_annual_",gsub("-","_",pastPeriods[i]),"_timmean.nc4"))
+							}	else	{
+								land_cover = nc_open(paste0("Environmental_rasters/ISIMIP3a/landcover_annual_",gsub("-","_",pastPeriods[i]),"_timmean.nc"))
+							}
+						population = brick(paste0("Environmental_rasters/ISIMIP3a/population_histsoc_0p5deg_annual_",gsub("-","_",pastPeriods[i]),"_timmean.nc4"), varname="total-population")		
+						temperature_winter = mean(temperature[[12]],temperature[[1]],temperature[[2]])-273.15 # conversion to Celcius degrees
+						temperature_spring = mean(temperature[[3]],temperature[[4]],temperature[[5]])-273.15 # conversion to Celcius degrees
+						temperature_summer = mean(temperature[[6]],temperature[[7]],temperature[[8]])-273.15 # conversion to Celcius degrees
+						temperature_inFall = mean(temperature[[9]],temperature[[10]],temperature[[11]])-273.15 # conversion to Celcius degrees
+						precipitation_winter = mean(precipitation[[12]],precipitation[[1]],precipitation[[2]])*60*60*24 # conversion to kg/m2/day
+						precipitation_spring = mean(precipitation[[3]],precipitation[[4]],precipitation[[5]])*60*60*24 # conversion to kg/m2/day
+						precipitation_summer = mean(precipitation[[6]],precipitation[[7]],precipitation[[8]])*60*60*24 # conversion to kg/m2/day
+						precipitation_inFall = mean(precipitation[[9]],precipitation[[10]],precipitation[[11]])*60*60*24 # conversion to kg/m2/day
+						relative_humidity_winter = mean(relative_humidity[[12]],relative_humidity[[1]],relative_humidity[[2]])
+						relative_humidity_spring = mean(relative_humidity[[3]],relative_humidity[[4]],relative_humidity[[5]])
+						relative_humidity_summer = mean(relative_humidity[[6]],relative_humidity[[7]],relative_humidity[[8]])
+						relative_humidity_inFall = mean(relative_humidity[[9]],relative_humidity[[10]],relative_humidity[[11]])
+						landCoverVariableNames = as.character(read.csv("Environmental_rasters/Luse.csv")[1:12,2])
+						landCoverVariableIDs = as.character(read.csv("Environmental_rasters/Luse.csv")[1:12,1])
+						land_covers1 = list(); land_covers2 = list(); land_covers3 = list()
+						for (j in 1:12)
+							{
+								land_covers1[[j]] = brick(paste0("Environmental_rasters/ISIMIP3a/landcover_annual_2000_2019_timmean.nc"), varname=landCoverVariableIDs[j])
+							}
+						variable_codes = c("croplands","pastures","urbanAreas","primaryForest","primaryNonF","secondaryForest","secondaryNonF")
+						variable_names = c("crops","pasture","urban land","forested primary land","non-forested primary land",
+								  		   "potentially forested secondary land","potentially non-forested secondary land")
+						for (j in 1:length(variable_names))
+							{
+								names = gsub("\\."," ",landCoverVariableNames); indices = which(landCoverVariableNames==variable_names[j])
+								if (length(indices) == 0) indices = which(grepl(variable_names[j],names))
+								if (variable_names[j] == "pasture") indices = c(indices, which(grepl("rangeland",names)))
+								land_cover = land_covers1[[indices[1]]]; names(land_cover) = variable_codes[j]; # print(indices)
+								if (length(indices) > 1)
+									{
+										for (k in 2:length(indices)) land_cover[] = land_cover[]+land_covers1[[indices[k]]][]
+									}
+								land_covers2[[j]] = land_cover[[1]]; land_covers3[[j]] = raster::aggregate(land_cover[[1]],2)
+							}
+						envVariables = list(); population_log10 = population; population_log10[] = log10(population_log10[]+1) 
+						envVariables[[1]] = temperature_winter; envVariables[[2]] = temperature_spring
+						envVariables[[3]] = temperature_summer; envVariables[[4]] = temperature_inFall
+						envVariables[[5]] = precipitation_winter; envVariables[[6]] = precipitation_spring
+						envVariables[[7]] = precipitation_summer; envVariables[[8]] = precipitation_inFall
+						envVariables[[9]] = relative_humidity_winter; envVariables[[10]] = relative_humidity_spring
+						envVariables[[11]] = relative_humidity_summer; envVariables[[12]] = relative_humidity_inFall
+						envVariables[[13]] = land_covers3[[4]] # primary forest areas
+						envVariables[[14]] = land_covers3[[5]] # primary non-forest areas
+						envVariables[[15]] = land_covers3[[6]] # secondary forest areas
+						envVariables[[16]] = land_covers3[[7]] # secondary non-forest areas
+						envVariables[[17]] = land_covers3[[1]] # croplands (all catergories)
+						envVariables[[18]] = land_covers3[[2]] # managed pasture + rangeland
+						envVariables[[19]] = population_log10 # human population (log-transformed)
+						for (j in 1:length(envVariables)) envVariables[[j]] = crop(envVariables[[j]], extentOfStudyArea, snap="out")
+						for (j in 1:12) envVariables[[j]][which(is.na(envVariables[[19]][]))] = NA 
+						for (j in 1:length(envVariables)) envVariables[[j]] = crop(envVariables[[j]], europe3, snap="out")
+						for (j in 1:length(envVariables)) envVariables[[j]] = mask(envVariables[[j]], europe3)
+						envVariables_list_3[[i]] = envVariables
+					}
+				envVariables_list_2[[h]] = envVariables_list_3
+			}
+		envVariables_list_1[[g]] = envVariables_list_2
+	}
+projections_list_1 = list()
+for (g in 1:length(models_isimip3a))
+	{
+		projections_list_2 = list()
+		for (h in 1:length(scenarios))
+			{
+				projections_list_3 = list()
+				for (i in 1:length(pastPeriods))
+					{
+						projections_list_4 = list(); errorInRasterName = FALSE
+						rasters_stack = stack(envVariables_list_1[[g]][[h]][[i]]); names(rasters_stack) = envVariableNames
+						first_brt_model = readRDS(paste0("BRT_projection_files/BRT_models/",species[1,1],"_",models_isimip3a_names[g],"_10_SCV2.rds"))[[1]]
+						if ("tprecipitation_spring" %in% colnames(first_brt_model$data$x.order)) errorInRasterName = TRUE
+						for (j in 1:length(names(rasters_stack)))
+							{
+								if (names(rasters_stack)[j] == "primary_non.forest_areas") names(rasters_stack)[j] = "primary_non-forest_areas"
+								if (names(rasters_stack)[j] == "secondary_non.forest_areas") names(rasters_stack)[j] = "secondary_non-forest_areas"
+								if (errorInRasterName)
+									{
+										if (names(rasters_stack)[j] == "precipitation_spring") names(rasters_stack)[j] = "tprecipitation_spring"
+									}
+							}
+						for (j in 1:dim(species)[1])
+							{
+								replicates = list()
+								brt_models = readRDS(paste0("BRT_projection_files/BRT_models/",species[j,1],"_",models_isimip3a_names[g],"_10_SCV2.rds"))
+								for (k in 1:length(brt_models))
+									{
+										df = as.data.frame(rasters_stack); not_NA = which(!is.na(rowMeans(df)))
+										for (l in 1:dim(df)[2])
+											{
+												if (colnames(df)[l] == "primary_non.forest_areas") colnames(df)[l] = "primary_non-forest_areas"
+												if (colnames(df)[l] == "secondary_non.forest_areas") colnames(df)[l] = "secondary_non-forest_areas"
+											}
+										newdata = df[not_NA,]; n.trees = brt_models[[k]]$gbm.call$best.trees; type = "response"; single.tree = FALSE
+										projection = predict.gbm(brt_models[[k]], newdata, n.trees, type, single.tree)
+										rast = rasters_stack[[1]]; rast[!is.na(rast[])] = projection; replicates[[k]] = rast
+									}
+								rasts = stack(replicates); projections_list_4[[j]] = mean(rasts)
+							}
+						projections_list_3[[i]] = projections_list_4
+					}
+				projections_list_2[[h]] = projections_list_3
+			}
+		projections_list_1[[g]] = projections_list_2
+	}
+r = envVariables[[1]]; r[!is.na(r[])] = 1
+contour = rasterToPolygons(r>0, dissolve=T); colourScales = list()
+colourScales[[1]] = c(rep("#F2F4F4",10),rev(hcl.colors(100,palette="terrain2")[1:90]))
+colourScales[[2]] = c(rep("#F2F4F4",10),rev(hcl.colors(100,palette="terrain2")[1:90]))
+colourScales[[3]] = colorRampPalette(brewer.pal(11,"RdBu"))(100)
+for (g in 1:length(models_isimip3a))
+	{
+		for (j in 1:dim(species)[1])
+			{
+				pdf(paste0("Species_estimations/",species[j,1],"_",models_isimip3a_names[g],".pdf"), width=8, height=5.8)
+				par(mfrow=c(3,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.2, col="gray30"); vS1 = c(); vS2 = c()
+				for (h in 1:length(scenarios))
+					{
+						for (i in 1:length(pastPeriods)) vS1 = c(vS1, projections_list_1[[g]][[h]][[i]][[j]][])
+					}
+				for (i in 1:length(pastPeriods))
+					{
+						vS2 = c(vS2, projections_list_1[[g]][[1]][[i]][[j]][]-projections_list_1[[g]][[2]][[i]][[j]][])
+					}
+				vS1 = vS1[which(!is.na(vS1))]; vS2 = vS2[which(!is.na(vS2))]
+				minVS2 = min(vS2); maxVS2 = max(vS2)
+				if (abs(minVS2) < abs(maxVS2)) minVS2 = -maxVS2
+				if (abs(maxVS2) < abs(minVS2)) maxVS2 = -minVS2
+				for (h in 1:length(scenarios))
+					{
+						for (i in 1:length(pastPeriods))
+							{				
+								index1 = (((min(projections_list_1[[g]][[h]][[i]][[j]][],na.rm=T)-min(vS1))/(max(vS1)-min(vS1)))*100)+1
+								index2 = (((max(projections_list_1[[g]][[h]][[i]][[j]][],na.rm=T)-min(vS1))/(max(vS1)-min(vS1)))*100)+1
+								plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[h]][index1:index2]; rast = raster(as.matrix(c(min(vS1),max(vS1))))
+								plot(projections_list_1[[g]][[h]][[i]][[j]], col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
+								if (h == 1) mtext("Historical reconstruction", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
+								if (h == 2) mtext("Counterfactual baseline", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
+								mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
+								plot(rast, legend.only=T, add=T, col=colourScales[[h]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
+									 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+									 at=c(0.2,0.4,0.6,0.8)), alpha=1, side=3)
+							}
+					}
+				for (i in 1:length(pastPeriods))
+					{
+						difference_obsclim_counterclim = projections_list_1[[g]][[1]][[i]][[j]]
+						difference_obsclim_counterclim[] = difference_obsclim_counterclim[]-projections_list_1[[g]][[2]][[i]][[j]][]
+						index1 = (((min(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+						index2 = (((max(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+						plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[3]][index1:index2]; rast = raster(as.matrix(c(minVS2,maxVS2)))
+						plot(difference_obsclim_counterclim, col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
+						mtext("Historical - counterfactual", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
+						mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
+						plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
+							 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+							 at=c(-0.6,-0.3,0,0.3,0.6)), alpha=1, side=3)
+					}
+				dev.off()
+			}
+	}
+SIppcs = read.csv("All_SIppc_values.csv", head=T)
+ESI_list_1 = list(); SRI_list_1 = list()
+for (g in 1:length(models_isimip3a))
+	{
+		ESI_list_2 = list(); SRI_list_2 = list()
+		for (h in 1:length(scenarios))
+			{
+				ESI_list_3 = list(); SRI_list_3 = list()
+				for (i in 1:length(pastPeriods))
+					{
+						counterRasters = list(); bufferRasters = list()
+						for (j in 1:dim(species)[1])
+							{
+								column = paste0("OptTres_",gsub("-","\\.",models_isimip3a_names[g]))
+								cutOff = as.numeric(unlist(strsplit(SIppcs[which(SIppcs[,1]==species[j,1]),column]," \\["))[1])
+								c = projections_list_1[[g]][[h]][[i]][[j]]
+								c[c[]<cutOff] = 0; c[c[]>cutOff] = 1; counterRasters[[j]] = c
+								bufferRasters[[j]] = projections_list_1[[g]][[h]][[i]][[j]]
+							}
+						ESI_list_3[[i]] = mean(stack(bufferRasters)); SRI_list_3[[i]] = sum(stack(counterRasters))
+					}
+				ESI_list_2[[h]] = ESI_list_3; SRI_list_2[[h]] = SRI_list_3
+			}
+		ESI_list_1[[g]] = ESI_list_2; SRI_list_1[[g]] = SRI_list_2
+	}
+r = envVariables[[1]]; r[!is.na(r[])] = 1
+contour = rasterToPolygons(r>0, dissolve=T); colourScales = list()
+colourScales[[1]] = rev(hcl.colors(100,palette="terrain2")[1:100])
+colourScales[[2]] = rev(hcl.colors(100,palette="terrain2")[1:100])
+colourScales[[3]] = colorRampPalette(brewer.pal(11,"RdBu"))(100)
+for (g in 1:length(models_isimip3a))
+	{
+		pdf(paste0("All_the_figures_&_SI/ESI_evolutions_m",g,".pdf"), width=8, height=5.8)
+		par(mfrow=c(3,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.2, col="gray30"); vS1 = c(); vS2 = c()
+		for (h in 1:length(scenarios))
+			{
+				for (i in 1:length(pastPeriods)) vS1 = c(vS1, ESI_list_1[[g]][[h]][[i]][])
+			}
+		for (i in 1:length(pastPeriods))
+			{
+				vS2 = c(vS2, ESI_list_1[[g]][[1]][[i]][]-ESI_list_1[[g]][[2]][[i]][])
+			}
+		vS1 = vS1[which(!is.na(vS1))]; vS2 = vS2[which(!is.na(vS2))]
+		minVS2 = min(vS2); maxVS2 = max(vS2)
+		if (abs(minVS2) < abs(maxVS2)) minVS2 = -maxVS2
+		if (abs(maxVS2) < abs(minVS2)) maxVS2 = -minVS2
+		for (h in 1:length(scenarios))
+			{
+				for (i in 1:length(pastPeriods))
+					{				
+						index1 = (((min(ESI_list_1[[g]][[h]][[i]][],na.rm=T)-min(vS1))/(max(vS1)-min(vS1)))*100)+1
+						index2 = (((max(ESI_list_1[[g]][[h]][[i]][],na.rm=T)-min(vS1))/(max(vS1)-min(vS1)))*100)+1
+						plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[h]][index1:index2]; rast = raster(as.matrix(c(min(vS1),max(vS1))))
+						plot(projections_list_1[[g]][[h]][[i]][[j]], col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
+						if (h == 1) mtext("Historical reconstruction", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
+						if (h == 2) mtext("Counterfactual baseline", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
+						mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
+						plot(rast, legend.only=T, add=T, col=colourScales[[h]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
+							 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+							 at=c(0.2,0.4,0.6,0.8)), alpha=1, side=3)
+					}
+			}
+		for (i in 1:length(pastPeriods))
+			{
+				difference_obsclim_counterclim = ESI_list_1[[g]][[1]][[i]]
+				difference_obsclim_counterclim[] = difference_obsclim_counterclim[]-ESI_list_1[[g]][[2]][[i]][]
+				index1 = (((min(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+				index2 = (((max(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+				plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[3]][index1:index2]; rast = raster(as.matrix(c(minVS2,maxVS2)))
+				plot(difference_obsclim_counterclim, col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
+				mtext("Historical - counterfactual", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
+				mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
+				plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
+					 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+					 at=c(-0.2,-0.1,0,0.1,0.2)), alpha=1, side=3)
+			}
+		dev.off()
+	}
+for (g in 1:length(models_isimip3a))
+	{
+		pdf(paste0("All_the_figures_&_SI/SRI_evolutions_m",g,".pdf"), width=8, height=5.8)
+		par(mfrow=c(3,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.2, col="gray30"); vS1 = c(); vS2 = c()
+		for (h in 1:length(scenarios))
+			{
+				for (i in 1:length(pastPeriods)) vS1 = c(vS1, SRI_list_1[[g]][[h]][[i]][])
+			}
+		for (i in 1:length(pastPeriods))
+			{
+				vS2 = c(vS2, SRI_list_1[[g]][[1]][[i]][]-SRI_list_1[[g]][[2]][[i]][])
+			}
+		vS1 = vS1[which(!is.na(vS1))]; vS2 = vS2[which(!is.na(vS2))]
+		minVS2 = min(vS2); maxVS2 = max(vS2)
+		if (abs(minVS2) < abs(maxVS2)) minVS2 = -maxVS2
+		if (abs(maxVS2) < abs(minVS2)) maxVS2 = -minVS2
+		for (h in 1:length(scenarios))
+			{
+				for (i in 1:length(pastPeriods))
+					{				
+						index1 = (((min(SRI_list_1[[g]][[h]][[i]][],na.rm=T)-min(vS1))/(max(vS1)-min(vS1)))*100)+1
+						index2 = (((max(SRI_list_1[[g]][[h]][[i]][],na.rm=T)-min(vS1))/(max(vS1)-min(vS1)))*100)+1
+						plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[h]][index1:index2]; rast = raster(as.matrix(c(min(vS1),max(vS1))))
+						plot(projections_list_1[[g]][[h]][[i]][[j]], col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
+						if (h == 1) mtext("Historical reconstruction", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
+						if (h == 2) mtext("Counterfactual baseline", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
+						mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
+						plot(rast, legend.only=T, add=T, col=colourScales[[h]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
+							 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+							 at=c(0,10,20,30,40,50)), alpha=1, side=3)
+					}
+			}
+		for (i in 1:length(pastPeriods))
+			{
+				difference_obsclim_counterclim = SRI_list_1[[g]][[1]][[i]]
+				difference_obsclim_counterclim[] = difference_obsclim_counterclim[]-SRI_list_1[[g]][[2]][[i]][]
+				index1 = (((min(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+				index2 = (((max(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+				plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[3]][index1:index2]; rast = raster(as.matrix(c(minVS2,maxVS2)))
+				plot(difference_obsclim_counterclim, col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
+				mtext("Historical - counterfactual", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
+				mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
+				plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
+					 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+					 at=c(-20,-10,0,10,20)), alpha=1, side=3)
+			}
+		dev.off()
+	}
+pdf(paste0("All_the_figures_&_SI/ESI_&_SRI_GSWP3_NEW.pdf"), width=8, height=5.8)
+par(mfrow=c(3,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.2, col="gray30"); vS2 = c()
+for (i in 1:length(pastPeriods))
+	{
+		vS2 = c(vS2, ESI_list_1[[1]][[1]][[i]][]-ESI_list_1[[1]][[2]][[i]][])
+	}
+vS2 = vS2[which(!is.na(vS2))]
+minVS2 = min(vS2); maxVS2 = max(vS2)
+if (abs(minVS2) < abs(maxVS2)) minVS2 = -maxVS2
+if (abs(maxVS2) < abs(minVS2)) maxVS2 = -minVS2
+for (i in 1:length(pastPeriods))
+	{
+		difference_obsclim_counterclim = ESI_list_1[[1]][[1]][[i]]
+		difference_obsclim_counterclim[] = difference_obsclim_counterclim[]-ESI_list_1[[1]][[2]][[i]][]
+		index1 = (((min(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+		index2 = (((max(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+		plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[3]][index1:index2]; rast = raster(as.matrix(c(minVS2,maxVS2)))
+		plot(difference_obsclim_counterclim, col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
+		mtext("Historical - counterfactual", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
+		mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
+		plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
+			 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+			 at=c(-0.2,-0.1,0,0.1,0.2)), alpha=1, side=3)
+	}
+vS2 = c()
+for (i in 1:length(pastPeriods))
+	{
+		vS2 = c(vS2, SRI_list_1[[1]][[1]][[i]][]-SRI_list_1[[1]][[2]][[i]][])
+	}
+vS2 = vS2[which(!is.na(vS2))]
+minVS2 = min(vS2); maxVS2 = max(vS2)
+if (abs(minVS2) < abs(maxVS2)) minVS2 = -maxVS2
+if (abs(maxVS2) < abs(minVS2)) maxVS2 = -minVS2
+for (i in 1:length(pastPeriods))
+	{
+		difference_obsclim_counterclim = SRI_list_1[[1]][[1]][[i]]
+		difference_obsclim_counterclim[] = difference_obsclim_counterclim[]-SRI_list_1[[1]][[2]][[i]][]
+		index1 = (((min(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+		index2 = (((max(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+		plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[3]][index1:index2]; rast = raster(as.matrix(c(minVS2,maxVS2)))
+		plot(difference_obsclim_counterclim, col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
+		mtext("Historical - counterfactual", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
+		mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
+		plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
+			 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+			 at=c(-20,-10,0,10,20)), alpha=1, side=3)
+	}
+dev.off()
 
