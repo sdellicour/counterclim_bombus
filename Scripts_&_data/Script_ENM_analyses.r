@@ -1075,6 +1075,54 @@ for (g in 1:length(models_isimip3a))
 			}
 		dev.off()
 	}
+
+for (g in 1:length(models_isimip3a)) print(round(mean(((ESI_list_1[[g]][[1]][[1]][]-ESI_list_1[[g]][[1]][[length(pastPeriods)]][])/ESI_list_1[[g]][[1]][[1]][])*100,na.rm=T),2))
+for (g in 1:length(models_isimip3a)) print(round(mean(((ESI_list_1[[g]][[2]][[1]][]-ESI_list_1[[g]][[2]][[length(pastPeriods)]][])/ESI_list_1[[g]][[2]][[1]][])*100,na.rm=T),2))
+for (g in 1:length(models_isimip3a)) print(round(mean(((ESI_list_1[[g]][[2]][[length(pastPeriods)]][]-ESI_list_1[[g]][[1]][[length(pastPeriods)]][])/ESI_list_1[[g]][[2]][[length(pastPeriods)]][])*100,na.rm=T),2))
+for (g in 1:length(models_isimip3a)) print(round(mean(((SRI_list_1[[g]][[1]][[1]][]-SRI_list_1[[g]][[1]][[length(pastPeriods)]][])/SRI_list_1[[g]][[1]][[1]][])*100,na.rm=T),2))
+for (g in 1:length(models_isimip3a)) print(round(mean(((SRI_list_1[[g]][[2]][[1]][]-SRI_list_1[[g]][[2]][[length(pastPeriods)]][])/SRI_list_1[[g]][[2]][[1]][])*100,na.rm=T),2))
+for (g in 1:length(models_isimip3a)) print(round(mean(((SRI_list_1[[g]][[2]][[length(pastPeriods)]][]-SRI_list_1[[g]][[1]][[length(pastPeriods)]][])/SRI_list_1[[g]][[2]][[length(pastPeriods)]][])*100,na.rm=T),2))
+for (g in 1:length(models_isimip3a)) print(round(max(((SRI_list_1[[g]][[1]][[length(pastPeriods)]][]-SRI_list_1[[g]][[2]][[length(pastPeriods)]][])/SRI_list_1[[g]][[1]][[length(pastPeriods)]][])*100,na.rm=T),2))
+
+		# 4.49% (GSWP3-W5E5), 4.40% (20CRv3), 5.04% (20CRv3-ERA5), 5.83% (20CRv3-W5E5) --> an average loss of 4-6% of local ecological suitability between 2000-2019 and 1900-1919 (obsclim)
+		# -0.86% (GSWP3-W5E5), 0.16% (20CRv3), -0.08% (20CRv3-ERA5), -0.13% (20CRv3-W5E5) --> an average gain of 0-1% of local ecological suitability between 2000-2019 and 1900-1919 (counterclim)
+		# 5.47% (GSWP3-W5E5), 4.57% (20CRv3), 5.44% (20CRv3-ERA5), 6.4% (20CRv3-W5E5) --> an average loss of 5-6% of local ecological suitability solely due to climate change
+		# 6.37 (GSWP3-W5E5), 4.84% (20CRv3), 6.66% (20CRv3-ERA5), 7.68% (20CRv3-W5E5) --> an average loss of 5-8% of local species diversity between 2000-2019 and 1900-1919 (obsclim)
+		# -1.83% (GSWP3-W5E5), -1.11% (20CRv3), -1.22% (20CRv3-ERA5), -1.65% (20CRv3-W5E5) --> an average gain of 1-2% of local species diversity between 2000-2019 and 1900-1919 (counterclim)
+		# 7.86% (GSWP3-W5E5), 5.53% (20CRv3), 7.51% (20CRv3-ERA5), 9.28% (20CRv3-W5E5) --> an average loss of 6-9% of local species diversity solely due to climate change
+		# 71.43% (GSWP3-W5E5), 75.00% (20CRv3), 80.00% (20CRv3-ERA5), 66.67% (20CRv3-W5E5) --> a loss up to 71-80% of local species diversity solely due to climate change
+
+target_countries = list()
+target_countries[[1]] = shapefile("Countries_shapefiles/Spain_GADM_0.shp")
+target_countries[[2]] = shapefile("Countries_shapefiles/France_GADM_0.shp")
+target_countries[[3]] = shapefile("Countries_shapefiles/Sweden_GADM_0.shp")
+for (i in 1:length(target_countries))
+	{
+		polIndex1 = NA; polIndex2 = NA; maxArea = -9999
+		for (j in 1:length(target_countries[[i]]@polygons))
+			{
+				for (k in 1:length(target_countries[[i]]@polygons[[j]]@Polygons))
+					{
+						if (maxArea < target_countries[[i]]@polygons[[j]]@Polygons[[k]]@area)
+							{
+								polIndex1 = j; polIndex2 = k; maxArea = target_countries[[i]]@polygons[[j]]@Polygons[[k]]@area
+							}
+					}
+			}
+		pol = target_countries[[i]]@polygons[[polIndex1]]@Polygons[[polIndex2]]
+		p = Polygon(pol@coords); ps = Polygons(list(p),1); sps = SpatialPolygons(list(ps))
+		pol = sps; proj4string(pol) = target_countries[[i]]@proj4string
+		for (g in 1:length(models_isimip3a))
+			{
+				r1 = mask(crop(SRI_list_1[[g]][[1]][[length(pastPeriods)]], pol), pol)
+				r2 = mask(crop(SRI_list_1[[g]][[2]][[length(pastPeriods)]], pol), pol)
+				print(round(c(mean((r2[]-r1[])/r2[],na.rm=T),max((r2[]-r1[])/r2[],na.rm=T))*100,2))
+			}
+	}
+		# Spain: 20.10% (GSWP3-W5E5), 14.17% (20CRv3), 10.16% (20CRv3-ERA5), 11.57% (20CRv3-W5E5) --> an average loss of 10-20% of local species diversity solely due to climate change
+		# France: 29.26% (GSWP3-W5E5), 18.26% (20CRv3), 27.60% (20CRv3-ERA5), 30.08% (20CRv3-W5E5) --> an average loss of 18-30% of local species diversity solely due to climate change
+		# Sweden: -7.65% (GSWP3-W5E5), -1.85% (20CRv3), -7.03% (20CRv3-ERA5), 0.89% (20CRv3-W5E5) --> an average gain of 1-8% of local species diversity solely due to climate change
+
 pdf(paste0("All_the_figures_&_SI/ESI_&_SRI_GSWP3_NEW.pdf"), width=8, height=5.8)
 par(mfrow=c(3,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.2, col="gray30"); vS2 = c()
 for (i in 1:length(pastPeriods))
