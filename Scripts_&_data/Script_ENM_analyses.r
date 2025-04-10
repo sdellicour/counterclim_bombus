@@ -724,8 +724,8 @@ if (!file.exists(paste0("All_SIppc_values.csv")))
 			{
 				plot(tabs_list1[[1]][[i]][[1]], col=NA, ann=F, axes=F, xlim=c(0,1), ylim=c(0,1))
 				for (j in 1:length(tabs_list1[[1]][[i]])) lines(tabs_list1[[2]][[i]][[j]], lwd=0.3, col="gray50", lty=1)
-				axis(side=1, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.030, col.axis="gray30", mgp=c(0,0.07,0), at=c(0,0.2,0.4,0.6,0.8,1), label=c("0","0.2","0.4","0.6","0.8","1"))
-				axis(side=2, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.030, col.axis="gray30", mgp=c(0,0.30,0), at=c(0,0.2,0.4,0.6,0.8,1), label=c("0","0.2","0.4","0.6","0.8","1"))
+				axis(side=1, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.030, col="gray30", col.axis="gray30", col.tick="gray30", mgp=c(0,0.07,0), at=c(0,0.2,0.4,0.6,0.8,1), label=c("0","0.2","0.4","0.6","0.8","1"))
+				axis(side=2, lwd.tick=0.2, cex.axis=0.7, lwd=0, tck=-0.030, col="gray30", col.axis="gray30", col.tick="gray30", mgp=c(0,0.30,0), at=c(0,0.2,0.4,0.6,0.8,1), label=c("0","0.2","0.4","0.6","0.8","1"))
 				if (i %in% c(1,7,13,19,25,31,37,43)) title(ylab=expression("SI"["ppc"]), cex.lab=0.9, mgp=c(1.3,0,0), col.lab="gray30")
 				if (i %in% c(43,44,45,46,47)) title(xlab="Threshold", cex.lab=0.9, mgp=c(1.1,0,0), col.lab="gray30")
 				box(lwd=0.2, col="gray30"); SIppc = unlist(strsplit(tab[i,1]," "))[1]; threshold = unlist(strsplit(tab[i,2]," "))[1]
