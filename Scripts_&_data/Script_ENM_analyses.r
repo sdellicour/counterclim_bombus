@@ -68,7 +68,7 @@ if (!file.exists("Continents_shapefile/Simplified_European_contour.shp"))
 		europe2@proj4string=europe1@proj4string; europe3@proj4string=europe1@proj4string
 		europe3_spdf = SpatialPolygonsDataFrame(europe3, data.frame(IS=1:length(europe3@polygons)))
 		writeOGR(europe3_spdf, dsn="Continents_shapefile", layer="Simplified_European_contour", driver="ESRI Shapefile")
-	}	else		{
+	}	else	{
 		europe3 = shapefile("Continents_shapefile/Simplified_European_contour.shp")
 	}
 
@@ -307,7 +307,7 @@ for (t in 1:length(periods))
 		species = species[which(species!="Bombus_magnus")] # discarded because associated with a sampling bias
 		species = species[which(species!="Bombus_schrencki")] # discarded because with an eastern European distribution
 		species = species[which(species!="Bombus_xanthopus")] # discarded because insular (in Corsica)
-		species = data.frame(species[order(species)]); indices = c(); c = 0 # too restricted compared to its host
+		species = data.frame(species[order(species)]); indices = c(); c = 0
 		observations = list(); minYear = periods[[t]][1]; maxYear = periods[[t]][2]
 		for (i in 1:dim(species)[1])
 			{
@@ -348,7 +348,7 @@ for (t in 1:length(periods))
 			}
 	}
 
-# 3. Boosted regression trees (BRT) analyses with standard or spatial cross-validation
+# 3. Boosted regression tree analyses with a spatial cross-validation
 
 nullRaster = envVariables_list[[1]][[1]]; nullRaster[!is.na(nullRaster[])] = 1
 names(nullRaster) = "nullRaster"; allObservationsOnTheContinent = c()
