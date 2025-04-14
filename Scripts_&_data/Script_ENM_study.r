@@ -1,14 +1,14 @@
 # TO DO:
 	# - compute the predictive performance for each time period and both scenarios using all species records (1901-2020) --> validation (for obsclim projections in recent time periods),
 	#	but also an opportunity to compare the differentiation between the obsclim and counterclim scenarios through time (the more we move forward, the less the counterclim scenario
-	#	should allow explaining the distribution of actual occurrence records). In practice, let's use a presence-only predictive performance metric: the Boyce index (BI)
-	# - main figure: add a row of maps reporting SRI or CSI values in a "no dispersal" scenario (currently: "full dispersal" scenario), with the species blocked in their current range
-	#	(their range being defined by 95 or 99% kernel density polygons + the pixels outside of these polygons that contain at least one observation for the target species)
+	#	should allow explaining the distribution of actual occurrence records). In practice, let's use a presence-only predictive performance metric: the Boyce index (BI; see with Kyla)
+	# - main figure: add two row of maps reporting SRI and CSI values in a "no dispersal" scenario (currently: "full dispersal" scenario), with the species blocked in their current range
+	#	(their range being, e.g., defined by 95 or 99% kernel density polygons + the pixels outside of these polygons that contain at least one observation for the target species)
 	# - compute a weighted SRI: SRI/number of species present in the cell at t0 (the presence of one species befing delimited by the polygons described above)
 # NOTES:
-	# - for the sampling of pseudo-absences, some improvements should be performed as compared to the previous study: (i) we should use a ratio 1:1, (ii) and each replicate should be based
-	#	on an independent sampling of pseudo-absences within the background (= set of raster cells where there is at least one other record for another Bombus species); and (iii) finally, 
-	#	for the species for which there is not enough background cells remaining to reach a 1:1 ratio, we should sample the remaining pseudo-absences in the rest of the study area
+	# - for the sampling of pseudo-absences, some improvements were performed as compared to the previous study: (i) we use a 1:1 ratio, (ii) each replicate is based on an independent
+	#	sampling of pseudo-absences within the background (= set of raster cells where there is at least one other record for another Bombus species); and finally (iii) for the species
+	#	for which there is not enough background cells remaining to reach a 1:1 ratio, we sample the remaining pseudo-absences in the rest of the study area
 
 library(ade4)
 library(ape)
