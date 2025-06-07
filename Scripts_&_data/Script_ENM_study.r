@@ -1,20 +1,3 @@
-# TO DO:
-	# - compute the predictive performance for each time period and both scenarios using all species records (1901-2020) --> validation (for obsclim projections in recent time periods),
-	#	but also an opportunity to compare the differentiation between the obsclim and counterclim scenarios through time (the more we move forward, the less the counterclim scenario
-	#	should allow explaining the distribution of actual occurrence records). In practice, let's use a presence-only predictive performance metric: the Boyce index (BI), which works by
-	#	(i) defining some bins of 0.1 of ecological suitability ([0.00-0.10], [0.01-0.11], ..., [0.91-1.00]); (ii) for each bin, we then compute the proportion p1 of presence points 
-	#	falling in it and the proportion p2 of newly generated PAs falling in it (with a ratio 1:1 of presence and PA cells); and (iii) the BI is then computed as the ratio between p1 and
-	#	p2 (to be cheched). We will consider the two scenarios (obsclim and counterclim) as well as 5 periods (1901-39, 1940-79, 1980-1999, 2000-2019) and, for those different periods, only
-	#	the species for which we have at least 30 observations (30 presence raster cells) will be considered for the BI computation for that period. As the simulation of the PA locations 
-	#	is random, we will generate 10 PAs distribution per trained BRT model, leading to a total of 100 BI computation per species and per considered time period
-# NOTES:
-	# - potential idea for the main figure: add two row of maps reporting SRI and CSI values in a "no dispersal" scenario (currently: "full dispersal" scenario), with the species blocked
-	#	in their current range (their range being, e.g., defined by 95 or 99% kernel density polygons + the pixels outside of these polygons that contain at least one observation point)
-	# - potential idea: compute a weighted SRI: SRI/number of species present in the cell at t0 (the presence of one species befing delimited by the polygons described above)
-	# - for the sampling of pseudo-absences, some improvements were performed as compared to the previous study: (i) we use a 1:1 ratio, (ii) each replicate is based on an independent
-	#	sampling of pseudo-absences within the background (= set of raster cells where there is at least one other record for another Bombus species); and finally (iii) for the species
-	#	for which there is not enough background cells remaining to reach a 1:1 ratio, we sample the remaining pseudo-absences in the rest of the study area
-
 library(ade4)
 library(ape)
 library(blockCV)
@@ -44,8 +27,8 @@ library(vioplot)
 # 4. Computation of the prevalence-pseudoabsence-calibrated Sørensen index (SI_pcc)
 # 5. Computation and analysis of the relative influence of each environmental factor
 # 6. BRT projections based on historical and counterfactual climate simulations
-# 7. Computation and mapping of the evolution of the Boyce index (BI) through time
-# 8. Computation and mapping of the ESI and SRI metrics for the different time periods
+# 7. Computation and mapping of the ESI and SRI metrics for the different time periods
+# 8. Computation and mapping of the evolution of the Boyce index (BI) through time
 
 directory = "Bombus_obs_111224"; savingPlots = FALSE
 timePeriods = c("2000_2019"); periods = list(c(2000,2019))
@@ -868,6 +851,9 @@ for (g in 1:length(models_isimip3a))
 			}
 		envVariables_list_1[[g]] = envVariables_list_2
 	}
+r = envVariables[[1]]; r[!is.na(r[])] = 1
+contour = rasterToPolygons(r>0, dissolve=T)
+
 projections_list_1 = list()
 for (g in 1:length(models_isimip3a))
 	{
@@ -915,8 +901,7 @@ for (g in 1:length(models_isimip3a))
 		projections_list_1[[g]] = projections_list_2
 	}
 
-r = envVariables[[1]]; r[!is.na(r[])] = 1
-contour = rasterToPolygons(r>0, dissolve=T); colourScales = list()
+colourScales = list()
 colourScales[[1]] = c(rep("#F2F4F4",10),rev(hcl.colors(100,palette="terrain2")[1:90]))
 colourScales[[2]] = c(rep("#F2F4F4",10),rev(hcl.colors(100,palette="terrain2")[1:90]))
 colourScales[[3]] = colorRampPalette(brewer.pal(11,"RdBu"))(100)
@@ -972,11 +957,7 @@ for (g in 1:length(models_isimip3a))
 			}
 	}
 
-# 7. Computation and mapping of the evolution of the Boyce index (BI) through time
-
-	####
-
-# 8. Computation and mapping of the ESI and SRI metrics for the different time periods
+# 7. Computation and mapping of the ESI and SRI metrics for the different time periods
 
 SIppcs = read.csv("All_SIppc_values.csv", head=T)
 ESI_list_1 = list(); SRI_list_1 = list()
@@ -1200,4 +1181,223 @@ for (i in 1:length(pastPeriods))
 			 at=c(-20,-10,0,10,20)), alpha=1, side=3)
 	}
 dev.off()
+
+# 8. Computation and mapping of the evolution of the Boyce index (BI) through time
+
+if (!file.exists("Boyce_index_lists.rds"))
+	{
+		BIs_list_1 = list(); g = 1; h = 1; i = 1; j = 1; k = 1; l = 1
+		for (g in 1:length(models_isimip3a))
+			{
+				BIs_list_2 = list()
+				for (h in 1:length(scenarios))
+					{
+						BIs_list_3 = list()
+						for (i in 1:length(pastPeriods))
+							{
+								BIs_list_4 = list(); errorInRasterName = FALSE; print(c(g,h,i))
+								rasters_stack = stack(envVariables_list_1[[g]][[h]][[i]]); names(rasters_stack) = envVariableNames
+								first_brt_model = readRDS(paste0("BRT_projection_files/BRT_models/",species[1,1],"_",models_isimip3a_names[g],"_10_SCV2.rds"))[[1]]
+								if ("tprecipitation_spring" %in% colnames(first_brt_model$data$x.order)) errorInRasterName = TRUE
+								for (j in 1:length(names(rasters_stack)))
+									{
+										if (names(rasters_stack)[j] == "primary_non.forest_areas") names(rasters_stack)[j] = "primary_non-forest_areas"
+										if (names(rasters_stack)[j] == "secondary_non.forest_areas") names(rasters_stack)[j] = "secondary_non-forest_areas"
+										if (errorInRasterName)
+											{
+												if (names(rasters_stack)[j] == "precipitation_spring") names(rasters_stack)[j] = "tprecipitation_spring"
+											}
+									}
+								j = 1
+								for (j in 1:dim(species)[1])
+									{
+										BIs_list_5 = list()
+										brt_models = readRDS(paste0("BRT_projection_files/BRT_models/",species[j,1],"_",models_isimip3a_names[g],"_10_SCV2.rds"))
+										nber_of_presence_points = dim(brt_models[[1]]$gbm.call$dataframe[,c("x","y")])[1]
+										if (nber_of_presence_points >= 30)
+											{
+												for (k in 1:length(brt_models))
+													{
+														df = as.data.frame(rasters_stack); not_NA = which(!is.na(rowMeans(df)))
+														for (l in 1:dim(df)[2])
+															{
+																if (colnames(df)[l] == "primary_non.forest_areas") colnames(df)[l] = "primary_non-forest_areas"
+																if (colnames(df)[l] == "secondary_non.forest_areas") colnames(df)[l] = "secondary_non-forest_areas"
+															}
+														newdata = df[not_NA,]; n.trees = brt_models[[k]]$gbm.call$best.trees; type = "response"; single.tree = FALSE
+														projection = predict.gbm(brt_models[[k]], newdata, n.trees, type, single.tree)
+														rast = rasters_stack[[1]]; rast[!is.na(rast[])] = projection; projection = rast		
+														presence_points = brt_models[[k]]$gbm.call$dataframe[,c("x","y")]
+														presence_values = raster::extract(rast, presence_points)
+														BIs_list_6 = list(); l = 1 # 10 replicate for the selection of random points selected within the study area
+														for (l in 1:10)
+															{		
+																random_points = spsample(contour, n=dim(presence_points)[1], type="random")@coords
+																# plot(rast); points(presence_points); points(random_points, col="red")
+																random_values = raster::extract(rast, random_points)
+																intervals1 = seq(0,0.9,0.01); intervals2 = intervals1+0.1; Fs1 = rep(NA, length(intervals1))
+																for (m in 1:length(intervals1))
+																	{
+																		P = sum((presence_values>intervals1[m])&(presence_values<=intervals2[m]))
+																		E = sum((random_values>intervals1[m])&(random_values<=intervals2[m]))
+																		Fs1[m] = P/E
+																	}
+																Fs2 = Fs1[which(!is.na(Fs1))]; intervals = c(1:length(intervals1))
+																intervals = intervals[which(!is.na(Fs1))] # plot(c(1:length(intervals1)), Fs2)
+																BIs_list_6[[l]] = cor(Fs2, intervals, method="spearman")
+															}
+														BIs_list_5[[k]] = BIs_list_6
+													}
+											}
+										BIs_list_4[[j]] = BIs_list_5
+									}
+								BIs_list_3[[i]] = BIs_list_4
+							}
+						BIs_list_2[[h]] = BIs_list_3
+					}
+				BIs_list_1[[g]] = BIs_list_2
+			}
+		saveRDS(BIs_list_1, "Boyce_index_lists.rds")
+	}	else	{
+		BIs_list_1 = readRDS("Boyce_index_lists.rds")
+	}
+differences_list1 = list(); g = 1; h = 1; i = 1; j = 1; k = 1; l = 1
+for (g in 1:length(models_isimip3a))
+	{
+		differences_list2 = list()
+		for (i in 1:length(pastPeriods))
+			{
+				differences = matrix(nrow=dim(species)[1], ncol=length(brt_models)*10)	
+				for (j in 1:dim(species)[1])
+					{
+						brt_models = readRDS(paste0("BRT_projection_files/BRT_models/",species[j,1],"_",models_isimip3a_names[g],"_10_SCV2.rds"))
+						nber_of_presence_points = dim(brt_models[[1]]$gbm.call$dataframe[,c("x","y")])[1]
+						if (nber_of_presence_points >= 30)
+							{
+								for (k in 1:length(brt_models))
+									{
+										for (l in 1:10)
+											{
+												differences[j,((k-1)*10)+l] = BIs_list_1[[g]][[1]][[i]][[j]][[k]][[l]]-BIs_list_1[[g]][[2]][[i]][[j]][[k]][[l]]
+											}	
+									}
+							}
+					}
+				differences_list2[[i]] = differences
+			}
+		differences_list1[[g]] = differences_list2
+	}
+pdf(paste0("All_the_figures_&_SI/Mean_BI_differences_NEW.pdf"), width=8, height=2.5) # dev.new(width=8, height=2.5)
+par(mfrow=c(1,4), oma=c(0,0.75,0,0), mar=c(2.5,3,1,1), lwd=0.4, col="gray30"); boxplots = FALSE; yMin = 9999; yMax = -9999
+for (g in 1:length(models_isimip3a))
+	{
+		mean_differences = matrix(nrow=dim(species)[1], ncol=length(pastPeriods))
+		colnames(mean_differences) = pastPeriods
+		for (i in 1:length(pastPeriods))
+			{
+				for (j in 1:dim(species)[1])
+					{
+						mean_differences[j,i] = mean(differences_list1[[g]][[i]][j,], na.rm=T)
+					}
+			}
+		if (yMin > min(mean_differences,na.rm=T)) yMin = min(mean_differences,na.rm=T)
+		if (yMax < max(mean_differences,na.rm=T)) yMax = max(mean_differences,na.rm=T)
+	}
+for (g in 1:length(models_isimip3a))
+	{
+		mean_differences = matrix(nrow=dim(species)[1], ncol=length(pastPeriods))
+		colnames(mean_differences) = pastPeriods
+		for (i in 1:length(pastPeriods))
+			{
+				for (j in 1:dim(species)[1])
+					{
+						mean_differences[j,i] = mean(differences_list1[[g]][[i]][j,], na.rm=T)
+					}
+			}
+		if (boxplots) { dev.new(); boxplot(mean_differences) }
+		col = rgb(70,118,187,130,maxColorValue=255) # blue
+		stripchart(data.frame(mean_differences), method="jitter", vertical=T, pch=16, cex=1, col=col, ann=F, axes=F, ylim=c(yMin,yMax))
+		abline(h=0, lty=2, lwd=0.5, col="gray50")
+		axis(side=1, lwd.tick=0.4, cex.axis=0.9, lwd=0, tck=-0.040, col="gray30", col.axis="gray30", col.tick="gray30", mgp=c(0,0.40,0), at=c(1:6), label=pastPeriods)
+		axis(side=2, lwd.tick=0.4, cex.axis=0.9, lwd=0, tck=-0.035, col="gray30", col.axis="gray30", col.tick="gray30", mgp=c(0,0.45,0))
+		if (g == 1) title(ylab="Mean BI differences", cex.lab=1, mgp=c(1.8,0,0), col.lab="gray30")
+		box(lwd=0.4, col="gray30")
+	}
+dev.off()
+pValues_negative_BI_differences = matrix(nrow=dim(species)[1], ncol=length(models_isimip3a)*length(pastPeriods))
+pValues_positive_BI_differences = matrix(nrow=dim(species)[1], ncol=length(models_isimip3a)*length(pastPeriods))
+for (g in 1:length(models_isimip3a))
+	{
+		for (i in 1:length(pastPeriods))
+			{
+				if ((g == 1)&(i == 1)) colNames = c()
+				colNames = c(colNames, paste0(models_isimip3a_names[g],"-",pastPeriods[i]))
+			}
+	}
+row.names(pValues_negative_BI_differences) = species[,1]; colnames(pValues_negative_BI_differences) = colNames
+row.names(pValues_positive_BI_differences) = species[,1]; colnames(pValues_positive_BI_differences) = colNames
+for (g in 1:length(models_isimip3a))
+	{
+		pValues_WMW_negative_differences = matrix(nrow=dim(species)[1], ncol=length(pastPeriods))
+		pValues_WMW_positive_differences = matrix(nrow=dim(species)[1], ncol=length(pastPeriods))
+		colnames(pValues_WMW_negative_differences) = pastPeriods
+		colnames(pValues_WMW_positive_differences) = pastPeriods
+		for (i in 1:length(pastPeriods))
+			{
+				for (j in 1:dim(species)[1])
+					{
+						if (sum(is.na(differences_list1[[g]][[i]][j,])) != length(differences_list1[[g]][[i]][j,]))
+							{
+								pValues_WMW_negative_differences[j,i] = wilcox.test(differences_list1[[g]][[i]][j,], mu=0, alternative="less")$p.value
+								pValues_WMW_positive_differences[j,i] = wilcox.test(differences_list1[[g]][[i]][j,], mu=0, alternative="greater")$p.value						
+							}
+					}
+			}
+		for (i in 1:length(pastPeriods)) # Benjamini-Hochberg correction
+			{
+				n = sum(!is.na(buffer2))
+				buffer1 = pValues_WMW_negative_differences[,i]
+				buffer2 = buffer1; buffer2 = buffer2[order(buffer2)]
+				for (j in 1:dim(pValues_WMW_negative_differences)[1])
+					{
+						if (!is.na(pValues_WMW_negative_differences[j,i]))
+							{
+								rank = which(buffer2 == pValues_WMW_negative_differences[j,i])[1]
+								pValueText = as.character(round(pValues_WMW_negative_differences[j,i],3))
+								if (nchar(pValueText) == 4) pValueText = paste0(pValueText,"0")
+								if (nchar(pValueText) == 3) pValueText = paste0(pValueText,"00")
+								if (pValueText == "1") pValueText = ">0.999"
+								if (pValueText == "0") pValueText = "<0.001"
+								corrected_cut_off_value = (rank/n)*0.05
+								if (pValues_WMW_negative_differences[j,i] < corrected_cut_off_value)
+									{
+										pValueText = paste0(pValueText,"*")
+									}
+								pValues_negative_BI_differences[j,(length(pastPeriods)*(g-1))+i] = pValueText
+							}
+					}
+				buffer1 = pValues_WMW_positive_differences[,i]
+				buffer2 = buffer1; buffer2 = buffer2[order(buffer2)]
+				for (j in 1:dim(pValues_WMW_positive_differences)[1])
+					{
+						if (!is.na(pValues_WMW_positive_differences[j,i]))
+							{
+								rank = which(buffer2 == pValues_WMW_positive_differences[j,i])[1]
+								pValueText = as.character(round(pValues_WMW_positive_differences[j,i],3))
+								if (nchar(pValueText) == 4) pValueText = paste0(pValueText,"0")
+								if (nchar(pValueText) == 3) pValueText = paste0(pValueText,"00")
+								if (pValueText == "1") pValueText = ">0.999"
+								if (pValueText == "0") pValueText = "<0.001"
+								corrected_cut_off_value = (rank/n)*0.05
+								if (pValues_WMW_positive_differences[j,i] < corrected_cut_off_value)
+									{
+										pValueText = paste0(pValueText,"*")
+									}
+								pValues_positive_BI_differences[j,(length(pastPeriods)*(g-1))+i] = pValueText
+							}
+					}
+			}
+	}
+write.csv(pValues_negative_BI_differences, "Negative_BI_diffs.csv", quote=F)
+write.csv(pValues_positive_BI_differences, "Positive_BI_diffs.csv", quote=F)
 
