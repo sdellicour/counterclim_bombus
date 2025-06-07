@@ -1,11 +1,16 @@
 # TO DO:
 	# - compute the predictive performance for each time period and both scenarios using all species records (1901-2020) --> validation (for obsclim projections in recent time periods),
 	#	but also an opportunity to compare the differentiation between the obsclim and counterclim scenarios through time (the more we move forward, the less the counterclim scenario
-	#	should allow explaining the distribution of actual occurrence records). In practice, let's use a presence-only predictive performance metric: the Boyce index (BI; see with Kyla)
-	# - main figure: add two row of maps reporting SRI and CSI values in a "no dispersal" scenario (currently: "full dispersal" scenario), with the species blocked in their current range
-	#	(their range being, e.g., defined by 95 or 99% kernel density polygons + the pixels outside of these polygons that contain at least one observation for the target species)
-	# - compute a weighted SRI: SRI/number of species present in the cell at t0 (the presence of one species befing delimited by the polygons described above)
+	#	should allow explaining the distribution of actual occurrence records). In practice, let's use a presence-only predictive performance metric: the Boyce index (BI), which works by
+	#	(i) defining some bins of 0.1 of ecological suitability ([0.00-0.10], [0.01-0.11], ..., [0.91-1.00]); (ii) for each bin, we then compute the proportion p1 of presence points 
+	#	falling in it and the proportion p2 of newly generated PAs falling in it (with a ratio 1:1 of presence and PA cells); and (iii) the BI is then computed as the ratio between p1 and
+	#	p2 (to be cheched). We will consider the two scenarios (obsclim and counterclim) as well as 5 periods (1901-39, 1940-79, 1980-1999, 2000-2019) and, for those different periods, only
+	#	the species for which we have at least 30 observations (30 presence raster cells) will be considered for the BI computation for that period. As the simulation of the PA locations 
+	#	is random, we will generate 10 PAs distribution per trained BRT model, leading to a total of 100 BI computation per species and per considered time period
 # NOTES:
+	# - potential idea for the main figure: add two row of maps reporting SRI and CSI values in a "no dispersal" scenario (currently: "full dispersal" scenario), with the species blocked
+	#	in their current range (their range being, e.g., defined by 95 or 99% kernel density polygons + the pixels outside of these polygons that contain at least one observation point)
+	# - potential idea: compute a weighted SRI: SRI/number of species present in the cell at t0 (the presence of one species befing delimited by the polygons described above)
 	# - for the sampling of pseudo-absences, some improvements were performed as compared to the previous study: (i) we use a 1:1 ratio, (ii) each replicate is based on an independent
 	#	sampling of pseudo-absences within the background (= set of raster cells where there is at least one other record for another Bombus species); and finally (iii) for the species
 	#	for which there is not enough background cells remaining to reach a 1:1 ratio, we sample the remaining pseudo-absences in the rest of the study area
@@ -27,11 +32,20 @@ library(picante)
 library(phytools)
 library(RColorBrewer)
 library(raster)
-# library(rgdal)
-# library(rgeos)
+library(rgdal)
+library(rgeos)
 library(seqinr)
 library(sp)
 library(vioplot)
+
+# 1. Preparation of the different land cover and climatic environmental rasters
+# 2. Loading and ploting all the occurrence records for each Bombus species in Europe
+# 3. Boosted regression tree analyses with a spatial cross-validation procedure
+# 4. Computation of the prevalence-pseudoabsence-calibrated Sørensen index (SI_pcc)
+# 5. Computation and analysis of the relative influence of each environmental factor
+# 6. BRT projections based on historical and counterfactual climate simulations
+# 7. Computation and mapping of the evolution of the Boyce index (BI) through time
+# 8. Computation and mapping of the ESI and SRI metrics for the different time periods
 
 directory = "Bombus_obs_111224"; savingPlots = FALSE
 timePeriods = c("2000_2019"); periods = list(c(2000,2019))
@@ -50,7 +64,7 @@ models_isimip3a_names = c("GSWP3-W5E5", "20CRv3", "20CRv3-ERA5", "20CRv3-W5E5")
 scenarios = c("obsclim","counterclim"); selectedCV = "SCV2"
 pastPeriods = c("1901-1919","1920-1939","1940-1959","1960-1979","1980-1999","2000-2019")
 
-# 1. Preparation of land cover and climatic environmental rasters
+# 1. Preparation of the different land cover and climatic environmental rasters
 
 	# 1.1. Preparation of the European shapefile that will be used as a mask
 
@@ -289,7 +303,7 @@ for (i in 1:length(models_isimip3a))
 			}
 	}
 
-# 2. Loading and ploting all the Bombus records by continent
+# 2. Loading and ploting all the occurrence records for each Bombus species in Europe
 
 nullRaster = envVariables_list[[1]][[1]]; nullRaster[!is.na(nullRaster[])] = 1; names(nullRaster) = "nullRaster"
 for (i in 1:dim(species)[1])
@@ -355,7 +369,7 @@ for (t in 1:length(periods))
 			}
 	}
 
-# 3. Boosted regression tree analyses with a spatial cross-validation
+# 3. Boosted regression tree analyses with a spatial cross-validation procedure
 
 nullRaster = envVariables_list[[1]][[1]]; nullRaster[!is.na(nullRaster[])] = 1
 names(nullRaster) = "nullRaster"; allObservationsOnTheContinent = c()
@@ -655,7 +669,7 @@ if (!file.exists(paste0("All_AUC_values.csv")))
 	}
 AUC_values = read.csv("All_AUC_values.csv", head=T)
 
-# 4. Computation of the prevalence-pseudoabsence-calibrated Sørensen index
+# 4. Computation of the prevalence-pseudoabsence-calibrated Sørensen index (SI_pcc)
 
 	# - computation performed according to the formulas of Leroi et al. (2018, J. Biogeography)
 	# - optimisation of the threshold with a 0.01 step increment according to Li & Guo (2013, Ecography)
@@ -742,7 +756,7 @@ if (!file.exists(paste0("All_SIppc_values.csv")))
 		dev.off()
 	}
 
-# 5. Analyses of the relative influence of each environmental factor
+# 5. Computation and analysis of the relative influence of each environmental factor
 
 for (h in 1:length(models_isimip3a))
 	{
@@ -900,6 +914,7 @@ for (g in 1:length(models_isimip3a))
 			}
 		projections_list_1[[g]] = projections_list_2
 	}
+
 r = envVariables[[1]]; r[!is.na(r[])] = 1
 contour = rasterToPolygons(r>0, dissolve=T); colourScales = list()
 colourScales[[1]] = c(rep("#F2F4F4",10),rev(hcl.colors(100,palette="terrain2")[1:90]))
@@ -956,6 +971,13 @@ for (g in 1:length(models_isimip3a))
 				dev.off()
 			}
 	}
+
+# 7. Computation and mapping of the evolution of the Boyce index (BI) through time
+
+	####
+
+# 8. Computation and mapping of the ESI and SRI metrics for the different time periods
+
 SIppcs = read.csv("All_SIppc_values.csv", head=T)
 ESI_list_1 = list(); SRI_list_1 = list()
 for (g in 1:length(models_isimip3a))
