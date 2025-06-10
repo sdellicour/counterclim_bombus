@@ -1195,8 +1195,8 @@ if (!file.exists("Boyce_index_lists.rds"))
 						BIs_list_3 = list()
 						for (i in 1:length(pastPeriods))
 							{
-								BIs_list_4 = list(); errorInRasterName = FALSE; print(c(g,h,i))
-								rasters_stack = stack(envVariables_list_1[[g]][[h]][[i]]); names(rasters_stack) = envVariableNames
+								BIs_list_4 = list(); timePoints = as.numeric(unlist(strsplit(pastPeriods[i],"-"))); errorInRasterName = FALSE
+								rasters_stack = stack(envVariables_list_1[[g]][[h]][[i]]); names(rasters_stack) = envVariableNames; print(c(g,h,i))
 								first_brt_model = readRDS(paste0("BRT_projection_files/BRT_models/",species[1,1],"_",models_isimip3a_names[g],"_10_SCV2.rds"))[[1]]
 								if ("tprecipitation_spring" %in% colnames(first_brt_model$data$x.order)) errorInRasterName = TRUE
 								for (j in 1:length(names(rasters_stack)))
@@ -1213,8 +1213,16 @@ if (!file.exists("Boyce_index_lists.rds"))
 									{
 										BIs_list_5 = list()
 										brt_models = readRDS(paste0("BRT_projection_files/BRT_models/",species[j,1],"_",models_isimip3a_names[g],"_10_SCV2.rds"))
-										nber_of_presence_points = dim(brt_models[[1]]$gbm.call$dataframe[,c("x","y")])[1]
-										if (nber_of_presence_points >= 30)
+										observations = read.csv(paste0(directory,"/",species[j,1],".csv"), header=T); data_to_discard = c()
+										observations = observations[which((observations[,"year"]>=timePoints[1])&(observations[,"year"]<=timePoints[2])),c("longitude","latitude")]
+										for (k in 1:length(rasters_stack@layers)) # to discard the observations that do not fall within the rasters
+											{
+												data_to_discard = c(data_to_discard, which(is.na(raster::extract(rasters_stack[[k]],observations))))
+											}
+										data_to_discard = unique(data_to_discard); data_to_discard = data_to_discard[order(data_to_discard)]
+										if (length(data_to_discard) > 0) observations = observations[which(!c(1:dim(observations)[1])%in%data_to_discard),]
+										cellIDs = unique(cellFromXY(nullRaster, observations)); presence_points = xyFromCell(nullRaster, cellIDs)
+										if (dim(presence_points)[1] >= 30)
 											{
 												for (k in 1:length(brt_models))
 													{
@@ -1226,9 +1234,7 @@ if (!file.exists("Boyce_index_lists.rds"))
 															}
 														newdata = df[not_NA,]; n.trees = brt_models[[k]]$gbm.call$best.trees; type = "response"; single.tree = FALSE
 														projection = predict.gbm(brt_models[[k]], newdata, n.trees, type, single.tree)
-														rast = rasters_stack[[1]]; rast[!is.na(rast[])] = projection; projection = rast		
-														indices = which(brt_models[[k]]$gbm.call$dataframe[,c("response")]==1)
-														presence_points = brt_models[[k]]$gbm.call$dataframe[indices,c("x","y")]
+														rast = rasters_stack[[1]]; rast[!is.na(rast[])] = projection; projection = rast
 														presence_values = raster::extract(rast, presence_points)
 														BIs_list_6 = list(); l = 1 # 10 replicate for the selection of random points selected within the study area
 														for (l in 1:10)
@@ -1268,12 +1274,20 @@ for (g in 1:length(models_isimip3a))
 		differences_list2 = list()
 		for (i in 1:length(pastPeriods))
 			{
-				differences = matrix(nrow=dim(species)[1], ncol=10*10)	
+				differences = matrix(nrow=dim(species)[1], ncol=10*10); timePoints = as.numeric(unlist(strsplit(pastPeriods[i],"-")))
 				for (j in 1:dim(species)[1])
 					{
+						observations = read.csv(paste0(directory,"/",species[j,1],".csv"), header=T); data_to_discard = c()
+						observations = observations[which((observations[,"year"]>=timePoints[1])&(observations[,"year"]<=timePoints[2])),c("longitude","latitude")]
+						for (k in 1:length(rasters_stack@layers)) # to discard the observations that do not fall within the rasters
+							{
+								data_to_discard = c(data_to_discard, which(is.na(raster::extract(rasters_stack[[k]],observations))))
+							}
+						data_to_discard = unique(data_to_discard); data_to_discard = data_to_discard[order(data_to_discard)]
+						if (length(data_to_discard) > 0) observations = observations[which(!c(1:dim(observations)[1])%in%data_to_discard),]
+						cellIDs = unique(cellFromXY(nullRaster, observations)); presence_points = xyFromCell(nullRaster, cellIDs)
 						brt_models = readRDS(paste0("BRT_projection_files/BRT_models/",species[j,1],"_",models_isimip3a_names[g],"_10_SCV2.rds"))
-						nber_of_presence_points = dim(brt_models[[1]]$gbm.call$dataframe[,c("x","y")])[1]
-						if (nber_of_presence_points >= 30)
+						if (dim(presence_points)[1] >= 30)
 							{
 								for (k in 1:length(brt_models))
 									{
