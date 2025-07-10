@@ -376,7 +376,7 @@ if (!file.exists("BRT_data_frames.rds"))
 						data_to_discard = c(data_to_discard, which(is.na(raster::extract(rasters_stack[[j]],observations))))
 					}
 				data_to_discard = unique(data_to_discard); data_to_discard = data_to_discard[order(data_to_discard)]
-				if (length(data_to_discard) > 0) observations = observations[which(!c(1:dim(data)[1])%in%data_to_discard),]
+				if (length(data_to_discard) > 0) observations = observations[which(!c(1:dim(observations)[1])%in%data_to_discard),]
 				presenceCells = unique(raster::extract(nullRaster, observations, cellnumbers=T))
 				targetSpeciesBackground = background; targetSpeciesBackground[(1:length(targetSpeciesBackground[]))%in%presenceCells] = NA
 				studyAreaMinusBackground = nullRaster; studyAreaMinusBackground[which(targetSpeciesBackground[]==1)] = NA
@@ -1089,20 +1089,23 @@ for (g in 1:length(models_isimip3a))
 for (g in 1:length(models_isimip3a)) print(round(mean(((ESI_list_1[[g]][[1]][[1]][]-ESI_list_1[[g]][[1]][[length(pastPeriods)]][])/ESI_list_1[[g]][[1]][[1]][])*100,na.rm=T),2))
 for (g in 1:length(models_isimip3a)) print(round(mean(((ESI_list_1[[g]][[2]][[1]][]-ESI_list_1[[g]][[2]][[length(pastPeriods)]][])/ESI_list_1[[g]][[2]][[1]][])*100,na.rm=T),2))
 for (g in 1:length(models_isimip3a)) print(round(mean(((ESI_list_1[[g]][[2]][[length(pastPeriods)]][]-ESI_list_1[[g]][[1]][[length(pastPeriods)]][])/ESI_list_1[[g]][[2]][[length(pastPeriods)]][])*100,na.rm=T),2))
+for (g in 1:length(models_isimip3a)) print(round(max(((ESI_list_1[[g]][[1]][[length(pastPeriods)]][]-ESI_list_1[[g]][[2]][[length(pastPeriods)]][])/ESI_list_1[[g]][[1]][[length(pastPeriods)]][])*100,na.rm=T),2))
+
 for (g in 1:length(models_isimip3a)) print(round(mean(((SRI_list_1[[g]][[1]][[1]][]-SRI_list_1[[g]][[1]][[length(pastPeriods)]][])/SRI_list_1[[g]][[1]][[1]][])*100,na.rm=T),2))
 for (g in 1:length(models_isimip3a)) print(round(mean(((SRI_list_1[[g]][[2]][[1]][]-SRI_list_1[[g]][[2]][[length(pastPeriods)]][])/SRI_list_1[[g]][[2]][[1]][])*100,na.rm=T),2))
 for (g in 1:length(models_isimip3a)) print(round(mean(((SRI_list_1[[g]][[2]][[length(pastPeriods)]][]-SRI_list_1[[g]][[1]][[length(pastPeriods)]][])/SRI_list_1[[g]][[2]][[length(pastPeriods)]][])*100,na.rm=T),2))
 for (g in 1:length(models_isimip3a)) print(round(max(((SRI_list_1[[g]][[1]][[length(pastPeriods)]][]-SRI_list_1[[g]][[2]][[length(pastPeriods)]][])/SRI_list_1[[g]][[1]][[length(pastPeriods)]][])*100,na.rm=T),2))
 
-		# 4.49% (GSWP3-W5E5), 4.40% (20CRv3), 5.04% (20CRv3-ERA5), 5.83% (20CRv3-W5E5) --> an average loss of 4-6% of local ecological suitability between 2000-2019 and 1900-1919 (obsclim)
-		# -0.86% (GSWP3-W5E5), 0.16% (20CRv3), -0.08% (20CRv3-ERA5), -0.13% (20CRv3-W5E5) --> an average gain of 0-1% of local ecological suitability between 2000-2019 and 1900-1919 (counterclim)
-		# 5.47% (GSWP3-W5E5), 4.57% (20CRv3), 5.44% (20CRv3-ERA5), 6.4% (20CRv3-W5E5) --> an average loss of 5-6% of local ecological suitability solely due to climate change
-		# 6.37 (GSWP3-W5E5), 4.84% (20CRv3), 6.66% (20CRv3-ERA5), 7.68% (20CRv3-W5E5) --> an average loss of 5-8% of local species diversity between 2000-2019 and 1900-1919 (obsclim)
-		# -1.83% (GSWP3-W5E5), -1.11% (20CRv3), -1.22% (20CRv3-ERA5), -1.65% (20CRv3-W5E5) --> an average gain of 1-2% of local species diversity between 2000-2019 and 1900-1919 (counterclim)
-		# 7.86% (GSWP3-W5E5), 5.53% (20CRv3), 7.51% (20CRv3-ERA5), 9.28% (20CRv3-W5E5) --> an average loss of 6-9% of local species diversity solely due to climate change
-		# 71.43% (GSWP3-W5E5), 75.00% (20CRv3), 80.00% (20CRv3-ERA5), 66.67% (20CRv3-W5E5) --> a loss up to 71-80% of local species diversity solely due to climate change
+	# 4.49% (GSWP3-W5E5), 4.40% (20CRv3), 5.04% (20CRv3-ERA5), 5.83% (20CRv3-W5E5) --> an average loss of 4-6% of local ecological suitability between 2000-2019 and 1900-1919 (obsclim)
+	# -0.86% (GSWP3-W5E5), 0.16% (20CRv3), -0.08% (20CRv3-ERA5), -0.13% (20CRv3-W5E5) --> an average gain of ~0% of local ecological suitability between 2000-2019 and 1900-1919 (counterclim)
+	# 5.47% (GSWP3-W5E5), 4.57% (20CRv3), 5.44% (20CRv3-ERA5), 6.40% (20CRv3-W5E5) --> an average loss of 5-6% of local ecological suitability solely due to climate change
+	# 21.13% (GSWP3-W5E5), 17.84% (20CRv3), 20.19% (20CRv3-ERA5), 19.32% (20CRv3-W5E5) --> an average loss up to 19-21% of local ecological suitability solely due to climate change
+	# 6.37 (GSWP3-W5E5), 4.84% (20CRv3), 6.66% (20CRv3-ERA5), 7.68% (20CRv3-W5E5) --> an average loss of 5-8% of local species diversity between 2000-2019 and 1900-1919 (obsclim)
+	# -1.83% (GSWP3-W5E5), -1.11% (20CRv3), -1.22% (20CRv3-ERA5), -1.65% (20CRv3-W5E5) --> an average gain of 1-2% of local species diversity between 2000-2019 and 1900-1919 (counterclim)
+	# 7.86% (GSWP3-W5E5), 5.53% (20CRv3), 7.51% (20CRv3-ERA5), 9.28% (20CRv3-W5E5) --> an average loss of 6-9% of local species diversity solely due to climate change
+	# 71.43% (GSWP3-W5E5), 75.00% (20CRv3), 80.00% (20CRv3-ERA5), 66.67% (20CRv3-W5E5) --> a loss up to 71-80% of local species diversity solely due to climate change
 
-target_countries = list()
+target_countries = list(); country_ESIs = TRUE; country_SRIs = FALSE
 target_countries[[1]] = shapefile("Countries_shapefiles/Spain_GADM_0.shp")
 target_countries[[2]] = shapefile("Countries_shapefiles/France_GADM_0.shp")
 target_countries[[3]] = shapefile("Countries_shapefiles/Sweden_GADM_0.shp")
@@ -1124,14 +1127,23 @@ for (i in 1:length(target_countries))
 		pol = sps; proj4string(pol) = target_countries[[i]]@proj4string
 		for (g in 1:length(models_isimip3a))
 			{
-				r1 = mask(crop(SRI_list_1[[g]][[1]][[length(pastPeriods)]], pol), pol)
-				r2 = mask(crop(SRI_list_1[[g]][[2]][[length(pastPeriods)]], pol), pol)
+				if (country_ESIs)
+					{
+						r1 = mask(crop(ESI_list_1[[g]][[1]][[length(pastPeriods)]], pol), pol)
+						r2 = mask(crop(ESI_list_1[[g]][[2]][[length(pastPeriods)]], pol), pol)						
+					}	else	{
+						r1 = mask(crop(SRI_list_1[[g]][[1]][[length(pastPeriods)]], pol), pol)
+						r2 = mask(crop(SRI_list_1[[g]][[2]][[length(pastPeriods)]], pol), pol)		
+					}
 				print(round(c(mean((r2[]-r1[])/r2[],na.rm=T),max((r2[]-r1[])/r2[],na.rm=T))*100,2))
 			}
 	}
-		# Spain: 20.10% (GSWP3-W5E5), 14.17% (20CRv3), 10.16% (20CRv3-ERA5), 11.57% (20CRv3-W5E5) --> an average loss of 10-20% of local species diversity solely due to climate change
-		# France: 29.26% (GSWP3-W5E5), 18.26% (20CRv3), 27.60% (20CRv3-ERA5), 30.08% (20CRv3-W5E5) --> an average loss of 18-30% of local species diversity solely due to climate change
-		# Sweden: -7.65% (GSWP3-W5E5), -1.85% (20CRv3), -7.03% (20CRv3-ERA5), 0.89% (20CRv3-W5E5) --> an average gain of 1-8% of local species diversity solely due to climate change
+		# ESI, Spain: 14.28% (GSWP3-W5E5), 8.67% (20CRv3), 8.16% (20CRv3-ERA5), 8.23% (20CRv3-W5E5) --> an average loss of 8-14% of local species diversity solely due to climate change
+		# ESI, France: 19.39% (GSWP3-W5E5), 12.60% (20CRv3), 18.81% (20CRv3-ERA5), 20.03% (20CRv3-W5E5) --> an average loss of 13-20% of local species diversity solely due to climate change
+		# ESI, Sweden: -3.88% (GSWP3-W5E5), -0.21% (20CRv3), -2.34% (20CRv3-ERA5), 1.62% (20CRv3-W5E5) --> an average gain of -2 to 4% of local species diversity solely due to climate change
+		# SRI, Spain: 20.10% (GSWP3-W5E5), 14.17% (20CRv3), 10.16% (20CRv3-ERA5), 11.57% (20CRv3-W5E5) --> an average loss of 10-20% of local species diversity solely due to climate change
+		# SRI, France: 29.26% (GSWP3-W5E5), 18.26% (20CRv3), 27.60% (20CRv3-ERA5), 30.08% (20CRv3-W5E5) --> an average loss of 18-30% of local species diversity solely due to climate change
+		# SRI, Sweden: -7.65% (GSWP3-W5E5), -1.85% (20CRv3), -7.03% (20CRv3-ERA5), 0.89% (20CRv3-W5E5) --> an average gain of -1 to 8% of local species diversity solely due to climate change
 
 pdf(paste0("All_the_figures_&_SI/ESI_&_SRI_GSWP3_NEW.pdf"), width=8, height=5.8)
 par(mfrow=c(3,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.2, col="gray30"); vS2 = c()
@@ -1302,8 +1314,7 @@ for (g in 1:length(models_isimip3a))
 			}
 		differences_list1[[g]] = differences_list2
 	}
-pdf(paste0("All_the_figures_&_SI/Mean_BI_differences_NEW.pdf"), width=8, height=2.5) # dev.new(width=8, height=2.5)
-par(mfrow=c(1,4), oma=c(0,0.75,0,0), mar=c(2.5,3,1,1), lwd=0.4, col="gray30"); boxplots = FALSE; yMin = 9999; yMax = -9999
+yMin = 9999; yMax = -9999
 for (g in 1:length(models_isimip3a))
 	{
 		mean_differences = matrix(nrow=dim(species)[1], ncol=length(pastPeriods))
@@ -1318,6 +1329,8 @@ for (g in 1:length(models_isimip3a))
 		if (yMin > min(mean_differences,na.rm=T)) yMin = min(mean_differences,na.rm=T)
 		if (yMax < max(mean_differences,na.rm=T)) yMax = max(mean_differences,na.rm=T)
 	}
+pdf(paste0("All_the_figures_&_SI/Mean_BI_differences_NEW.pdf"), width=8, height=2.5) # dev.new(width=8, height=2.5)
+par(mfrow=c(1,4), oma=c(0,0.75,0,0), mar=c(2.5,3,1,1), lwd=0.4, col="gray30"); boxplots = FALSE
 for (g in 1:length(models_isimip3a))
 	{
 		mean_differences = matrix(nrow=dim(species)[1], ncol=length(pastPeriods))
@@ -1332,6 +1345,35 @@ for (g in 1:length(models_isimip3a))
 		if (boxplots) { dev.new(); boxplot(mean_differences) }
 		col = rgb(70,118,187,130,maxColorValue=255) # blue
 		stripchart(data.frame(mean_differences), method="jitter", vertical=T, pch=16, cex=1, col=col, ann=F, axes=F, ylim=c(yMin,yMax))
+		abline(h=0, lty=2, lwd=0.5, col="gray50")
+		axis(side=1, lwd.tick=0.4, cex.axis=0.9, lwd=0, tck=-0.040, col="gray30", col.axis="gray30", col.tick="gray30", mgp=c(0,0.40,0), at=c(1:6), label=pastPeriods)
+		axis(side=2, lwd.tick=0.4, cex.axis=0.9, lwd=0, tck=-0.035, col="gray30", col.axis="gray30", col.tick="gray30", mgp=c(0,0.45,0))
+		if (g == 1) title(ylab="Mean BI differences", cex.lab=1, mgp=c(1.8,0,0), col.lab="gray30")
+		box(lwd=0.4, col="gray30")
+	}
+dev.off()
+pdf(paste0("All_the_figures_&_SI/Mean_BI_detla_1901_NEW.pdf"), width=8, height=2.5) # dev.new(width=8, height=2.5)
+par(mfrow=c(1,4), oma=c(0,0.75,0,0), mar=c(2.5,3,1,1), lwd=0.4, col="gray30"); boxplots = FALSE
+for (g in 1:length(models_isimip3a))
+	{
+		mean_differences = matrix(nrow=dim(species)[1], ncol=length(pastPeriods))
+		colnames(mean_differences) = pastPeriods
+		for (i in 1:length(pastPeriods))
+			{
+				for (j in 1:dim(species)[1])
+					{
+						mean_differences[j,i] = mean(differences_list1[[g]][[i]][j,], na.rm=T)
+					}
+			}
+		if (boxplots) { dev.new(); boxplot(mean_differences) }
+		col = rgb(70,118,187,255,maxColorValue=255) # blue
+		stripchart(data.frame(mean_differences), method="jitter", vertical=T, pch=16, cex=1, col=NA, ann=F, axes=F, ylim=c(yMin,yMax))
+		for (i in 1:dim(mean_differences)[1])
+			{
+				xS = c(1:dim(mean_differences)[2])[which(!is.na(mean_differences[i,]))]
+				yS = mean_differences[i,which(!is.na(mean_differences[i,]))]
+				yS = yS-0; lines(xS, yS, col=col, lwd=0.2)	
+			}
 		abline(h=0, lty=2, lwd=0.5, col="gray50")
 		axis(side=1, lwd.tick=0.4, cex.axis=0.9, lwd=0, tck=-0.040, col="gray30", col.axis="gray30", col.tick="gray30", mgp=c(0,0.40,0), at=c(1:6), label=pastPeriods)
 		axis(side=2, lwd.tick=0.4, cex.axis=0.9, lwd=0, tck=-0.035, col="gray30", col.axis="gray30", col.tick="gray30", mgp=c(0,0.45,0))
