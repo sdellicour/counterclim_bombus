@@ -612,7 +612,7 @@ if (newAnalyses == TRUE) { for (h in 1:length(models_isimip3a)) { for (i in 1:di
 									# })
 								# if (!is.null(myblocks)) worked = TRUE
 							# }
-						n.trees = 10; learning.rate = 0.005; step.size = 5; fold.vector = myblocks$foldID
+						n.trees = 10; learning.rate = 0.005; step.size = 5; fold.vector = myblocks$folds_ids # "myblocks$foldID" not correct!
 						pdf(file=paste0("BRT_projection_files/BRT_models/",species[i,1],"_",models_isimip3a_names[h],"_SCV2_",j,".pdf"))
 						brt_model_scv2[[j]] = gbm.step(data, gbm.x, gbm.y, offset, fold.vector, tree.complexity, learning.rate, bag.fraction, site.weights,
 							var.monotone, n.folds, prev.stratify, family, n.trees, step.size, max.trees, tolerance.method, tolerance, plot.main, plot.folds,
@@ -933,9 +933,9 @@ for (g in 1:length(models_isimip3a))
 								plot(projections_list_1[[g]][[h]][[i]][[j]], col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
 								if (h == 1) mtext("Historical reconstruction", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
 								if (h == 2) mtext("Counterfactual baseline", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
-								mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
-								plot(rast, legend.only=T, add=T, col=colourScales[[h]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
-									 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+								mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=5.0, cex=0.50, col="gray30")
+								plot(rast, legend.only=T, add=T, col=colourScales[[h]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.085,0.69,0.89), adj=3,
+									 axis.args=list(cex.axis=0.60, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-1.0, col.axis="gray30", line=0, mgp=c(0,0.40,0),
 									 at=c(0.2,0.4,0.6,0.8)), alpha=1, side=3)
 							}
 					}
@@ -948,9 +948,9 @@ for (g in 1:length(models_isimip3a))
 						plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[3]][index1:index2]; rast = raster(as.matrix(c(minVS2,maxVS2)))
 						plot(difference_obsclim_counterclim, col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
 						mtext("Historical - counterfactual", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
-						mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
-						plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
-							 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+						mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=5.5, cex=0.50, col="gray30")
+						plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.085,0.69,0.89), adj=3,
+							 axis.args=list(cex.axis=0.60, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-1.0, col.axis="gray30", line=0, mgp=c(0,0.40,0),
 							 at=c(-0.6,-0.3,0,0.3,0.6)), alpha=1, side=3)
 					}
 				dev.off()
@@ -1005,19 +1005,22 @@ for (g in 1:length(models_isimip3a))
 		minVS2 = min(vS2); maxVS2 = max(vS2)
 		if (abs(minVS2) < abs(maxVS2)) minVS2 = -maxVS2
 		if (abs(maxVS2) < abs(minVS2)) maxVS2 = -minVS2
+		if (maxVS2 < 0.1) { minVS2 = -0.1; maxVS2 = 0.1 }
 		for (h in 1:length(scenarios))
 			{
 				for (i in 1:length(pastPeriods))
 					{				
 						index1 = (((min(ESI_list_1[[g]][[h]][[i]][],na.rm=T)-min(vS1))/(max(vS1)-min(vS1)))*100)+1
 						index2 = (((max(ESI_list_1[[g]][[h]][[i]][],na.rm=T)-min(vS1))/(max(vS1)-min(vS1)))*100)+1
+						par(lwd=0.2, col="gray30", col.axis="gray30", fg=NA)
 						plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[h]][index1:index2]; rast = raster(as.matrix(c(min(vS1),max(vS1))))
 						plot(projections_list_1[[g]][[h]][[i]][[j]], col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
 						if (h == 1) mtext("Historical reconstruction", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
 						if (h == 2) mtext("Counterfactual baseline", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
-						mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
-						plot(rast, legend.only=T, add=T, col=colourScales[[h]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
-							 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+						mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.9, at=5.0, cex=0.50, col="gray30")
+						par(lwd=0.2, col="gray30", col.axis="gray30", fg="gray30")
+						plot(rast, legend.only=T, add=T, col=colourScales[[h]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.085,0.69,0.89), adj=3,
+							 axis.args=list(cex.axis=0.60, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-1.0, col.axis="gray30", line=0, mgp=c(0,0.40,0),
 							 at=c(0.2,0.4,0.6,0.8)), alpha=1, side=3)
 					}
 			}
@@ -1027,20 +1030,22 @@ for (g in 1:length(models_isimip3a))
 				difference_obsclim_counterclim[] = difference_obsclim_counterclim[]-ESI_list_1[[g]][[2]][[i]][]
 				index1 = (((min(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
 				index2 = (((max(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+				par(lwd=0.2, col="gray30", col.axis="gray30", fg=NA)
 				plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[3]][index1:index2]; rast = raster(as.matrix(c(minVS2,maxVS2)))
 				plot(difference_obsclim_counterclim, col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
 				mtext("Historical - counterfactual", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
-				mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
-				plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
-					 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+				mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.9, at=5.5, cex=0.50, col="gray30")
+				par(lwd=0.2, col="gray30", col.axis="gray30", fg="gray30")
+				plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.085,0.69,0.89), adj=3,
+					 axis.args=list(cex.axis=0.60, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-1.0, col.axis="gray30", line=0, mgp=c(0,0.40,0),
 					 at=c(-0.2,-0.1,0,0.1,0.2)), alpha=1, side=3)
 			}
 		dev.off()
 	}
 for (g in 1:length(models_isimip3a))
 	{
-		pdf(paste0("All_the_figures_&_SI/SRI_evolutions_m",g,".pdf"), width=8, height=5.8)
-		par(mfrow=c(3,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.2, col="gray30"); vS1 = c(); vS2 = c()
+		pdf(paste0("All_the_figures_&_SI/SRI_evolutions_m",g,".pdf"), width=8, height=5.8); vS1 = c(); vS2 = c()
+		par(mfrow=c(3,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.2, col="gray30", col.axis="gray30", fg="gray30")
 		for (h in 1:length(scenarios))
 			{
 				for (i in 1:length(pastPeriods)) vS1 = c(vS1, SRI_list_1[[g]][[h]][[i]][])
@@ -1059,13 +1064,15 @@ for (g in 1:length(models_isimip3a))
 					{				
 						index1 = (((min(SRI_list_1[[g]][[h]][[i]][],na.rm=T)-min(vS1))/(max(vS1)-min(vS1)))*100)+1
 						index2 = (((max(SRI_list_1[[g]][[h]][[i]][],na.rm=T)-min(vS1))/(max(vS1)-min(vS1)))*100)+1
+						par(lwd=0.2, col="gray30", col.axis="gray30", fg=NA)
 						plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[h]][index1:index2]; rast = raster(as.matrix(c(min(vS1),max(vS1))))
 						plot(projections_list_1[[g]][[h]][[i]][[j]], col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
 						if (h == 1) mtext("Historical reconstruction", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
 						if (h == 2) mtext("Counterfactual baseline", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
-						mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
-						plot(rast, legend.only=T, add=T, col=colourScales[[h]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
-							 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+						mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=5.0, cex=0.50, col="gray30")
+						par(lwd=0.2, col="gray30", col.axis="gray30", fg="gray30")
+						plot(rast, legend.only=T, add=T, col=colourScales[[h]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.085,0.69,0.89), adj=3,
+							 axis.args=list(cex.axis=0.60, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-1.0, col.axis="gray30", line=0, mgp=c(0,0.40,0),
 							 at=c(0,10,20,30,40,50)), alpha=1, side=3)
 					}
 			}
@@ -1075,12 +1082,14 @@ for (g in 1:length(models_isimip3a))
 				difference_obsclim_counterclim[] = difference_obsclim_counterclim[]-SRI_list_1[[g]][[2]][[i]][]
 				index1 = (((min(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
 				index2 = (((max(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+				par(lwd=0.2, col="gray30", col.axis="gray30", fg=NA)
 				plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[3]][index1:index2]; rast = raster(as.matrix(c(minVS2,maxVS2)))
 				plot(difference_obsclim_counterclim, col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
 				mtext("Historical - counterfactual", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
-				mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
-				plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
-					 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+				mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=5.5, cex=0.50, col="gray30")
+				par(lwd=0.2, col="gray30", col.axis="gray30", fg="gray30")
+				plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.085,0.69,0.89), adj=3,
+					 axis.args=list(cex.axis=0.60, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-1.0, col.axis="gray30", line=0, mgp=c(0,0.40,0),
 					 at=c(-20,-10,0,10,20)), alpha=1, side=3)
 			}
 		dev.off()
@@ -1096,14 +1105,31 @@ for (g in 1:length(models_isimip3a)) print(round(mean(((SRI_list_1[[g]][[2]][[1]
 for (g in 1:length(models_isimip3a)) print(round(mean(((SRI_list_1[[g]][[2]][[length(pastPeriods)]][]-SRI_list_1[[g]][[1]][[length(pastPeriods)]][])/SRI_list_1[[g]][[2]][[length(pastPeriods)]][])*100,na.rm=T),2))
 for (g in 1:length(models_isimip3a)) print(round(max(((SRI_list_1[[g]][[1]][[length(pastPeriods)]][]-SRI_list_1[[g]][[2]][[length(pastPeriods)]][])/SRI_list_1[[g]][[1]][[length(pastPeriods)]][])*100,na.rm=T),2))
 
-	# 4.49% (GSWP3-W5E5), 4.40% (20CRv3), 5.04% (20CRv3-ERA5), 5.83% (20CRv3-W5E5) --> an average loss of 4-6% of local ecological suitability between 2000-2019 and 1900-1919 (obsclim)
-	# -0.86% (GSWP3-W5E5), 0.16% (20CRv3), -0.08% (20CRv3-ERA5), -0.13% (20CRv3-W5E5) --> an average gain of ~0% of local ecological suitability between 2000-2019 and 1900-1919 (counterclim)
-	# 5.47% (GSWP3-W5E5), 4.57% (20CRv3), 5.44% (20CRv3-ERA5), 6.40% (20CRv3-W5E5) --> an average loss of 5-6% of local ecological suitability solely due to climate change
-	# 21.13% (GSWP3-W5E5), 17.84% (20CRv3), 20.19% (20CRv3-ERA5), 19.32% (20CRv3-W5E5) --> an average loss up to 19-21% of local ecological suitability solely due to climate change
-	# 6.37 (GSWP3-W5E5), 4.84% (20CRv3), 6.66% (20CRv3-ERA5), 7.68% (20CRv3-W5E5) --> an average loss of 5-8% of local species diversity between 2000-2019 and 1900-1919 (obsclim)
-	# -1.83% (GSWP3-W5E5), -1.11% (20CRv3), -1.22% (20CRv3-ERA5), -1.65% (20CRv3-W5E5) --> an average gain of 1-2% of local species diversity between 2000-2019 and 1900-1919 (counterclim)
-	# 7.86% (GSWP3-W5E5), 5.53% (20CRv3), 7.51% (20CRv3-ERA5), 9.28% (20CRv3-W5E5) --> an average loss of 6-9% of local species diversity solely due to climate change
-	# 71.43% (GSWP3-W5E5), 75.00% (20CRv3), 80.00% (20CRv3-ERA5), 66.67% (20CRv3-W5E5) --> a loss up to 71-80% of local species diversity solely due to climate change
+g = 2; vS = (SRI_list_1[[g]][[2]][[length(pastPeriods)]][]-SRI_list_1[[g]][[1]][[length(pastPeriods)]][])/SRI_list_1[[g]][[2]][[length(pastPeriods)]][]
+vS = vS[which(!is.na(vS))]; vS = vS[which(is.finite(vS))]; print(round(mean(vS*100),2)) # (*)
+
+	# 4.34% (GSWP3-W5E5), 4.00% (20CRv3), 5.11% (20CRv3-ERA5), 5.81% (20CRv3-W5E5) --> an average loss of 4-6% of local ecological suitability between 2000-2019 and 1900-1919 (obsclim)
+	# -0.70% (GSWP3-W5E5), 0.22% (20CRv3), 0.11% (20CRv3-ERA5), 0.04% (20CRv3-W5E5) --> an average gain of ~0% of local ecological suitability between 2000-2019 and 1900-1919 (counterclim)
+	# 5.17% (GSWP3-W5E5), 4.09% (20CRv3), 5.36% (20CRv3-ERA5), 6.20% (20CRv3-W5E5) --> an average loss of 4-6% of local ecological suitability solely due to climate change
+	# 18.79% (GSWP3-W5E5), 14.69% (20CRv3), 16.53% (20CRv3-ERA5), 17.83% (20CRv3-W5E5) --> an average loss up to 15-19% of local ecological suitability solely due to climate change
+	# 6.72 (GSWP3-W5E5), 4.34% (20CRv3), 5.76% (20CRv3-ERA5), 6.71% (20CRv3-W5E5) --> an average loss of 4-7% of local species diversity between 2000-2019 and 1900-1919 (obsclim)
+	# -1.79% (GSWP3-W5E5), -0.64% (20CRv3), -1.67% (20CRv3-ERA5), -1.70% (20CRv3-W5E5) --> an average gain of 1-2% of local species diversity between 2000-2019 and 1900-1919 (counterclim)
+	# 8.16% (GSWP3-W5E5), 4.84%* (20CRv3), 6.94% (20CRv3-ERA5), 8.30% (20CRv3-W5E5) --> an average loss of 5-8% of local species diversity solely due to climate change
+	# 60.00% (GSWP3-W5E5), 100.00% (20CRv3), 66.67% (20CRv3-ERA5), 80.00% (20CRv3-W5E5) --> a loss up to 60-100% of local species diversity solely due to climate change
+
+avg_ES_loss = matrix(nrow=dim(species)[1], ncol=length(models_isimip3a)); max_ES_loss = matrix(nrow=dim(species)[1], ncol=length(models_isimip3a)) # for Bastien
+row.names(avg_ES_loss) = species[,1]; colnames(avg_ES_loss) = models_isimip3a_names; row.names(max_ES_loss) = species[,1]; colnames(max_ES_loss) = models_isimip3a_names
+for (g in 1:length(models_isimip3a))
+	{
+		for (i in 1:dim(species)[1])
+			{
+				avg_ES_loss[i,g] = round(mean(((projections_list_1[[g]][[2]][[length(pastPeriods)]][[i]][]-projections_list_1[[g]][[1]][[length(pastPeriods)]][[i]][])
+				/projections_list_1[[g]][[2]][[length(pastPeriods)]][[j]][])*100,na.rm=T),2) # ((mean_ES_counterclim_2000_2019 - mean_ES_obsclim_2000_2019)/mean_ES_counterclim_2000_2019)*100
+				max_ES_loss[i,g] = round(max(((projections_list_1[[g]][[2]][[length(pastPeriods)]][[i]][]-projections_list_1[[g]][[1]][[length(pastPeriods)]][[i]][])
+				/projections_list_1[[g]][[2]][[length(pastPeriods)]][[j]][])*100,na.rm=T),2) # ((max_ES_obsclim_2000_2019 - max_ES_counterclim_2000_2019)/max_ES_obsclim_2000_2019)*100
+		    }
+	}
+write.csv(avg_ES_loss, "Average_ES_loss.csv", quote=F); write.csv(max_ES_loss, "Maximum_ES_loss.csv", quote=F)
 
 target_countries = list(); country_ESIs = TRUE; country_SRIs = FALSE
 target_countries[[1]] = shapefile("Countries_shapefiles/Spain_GADM_0.shp")
@@ -1135,18 +1161,24 @@ for (i in 1:length(target_countries))
 						r1 = mask(crop(SRI_list_1[[g]][[1]][[length(pastPeriods)]], pol), pol)
 						r2 = mask(crop(SRI_list_1[[g]][[2]][[length(pastPeriods)]], pol), pol)		
 					}
-				print(round(c(mean((r2[]-r1[])/r2[],na.rm=T),max((r2[]-r1[])/r2[],na.rm=T))*100,2))
+				if ((i == 1)&(g == 2))
+					{
+						vS = (r2[]-r1[])/r2[]; vS = vS[which(!is.na(vS))]; vS = vS[which(is.finite(vS))]
+						print(round(c(mean(vS),max((r2[]-r1[])/r2[],na.rm=T))*100,2)) # (*)
+					}	else	{
+						print(round(c(mean((r2[]-r1[])/r2[],na.rm=T),max((r2[]-r1[])/r2[],na.rm=T))*100,2))
+					}
 			}
 	}
-		# ESI, Spain: 14.28% (GSWP3-W5E5), 8.67% (20CRv3), 8.16% (20CRv3-ERA5), 8.23% (20CRv3-W5E5) --> an average loss of 8-14% of local species diversity solely due to climate change
-		# ESI, France: 19.39% (GSWP3-W5E5), 12.60% (20CRv3), 18.81% (20CRv3-ERA5), 20.03% (20CRv3-W5E5) --> an average loss of 13-20% of local species diversity solely due to climate change
-		# ESI, Sweden: -3.88% (GSWP3-W5E5), -0.21% (20CRv3), -2.34% (20CRv3-ERA5), 1.62% (20CRv3-W5E5) --> an average gain of -2 to 4% of local species diversity solely due to climate change
-		# SRI, Spain: 20.10% (GSWP3-W5E5), 14.17% (20CRv3), 10.16% (20CRv3-ERA5), 11.57% (20CRv3-W5E5) --> an average loss of 10-20% of local species diversity solely due to climate change
-		# SRI, France: 29.26% (GSWP3-W5E5), 18.26% (20CRv3), 27.60% (20CRv3-ERA5), 30.08% (20CRv3-W5E5) --> an average loss of 18-30% of local species diversity solely due to climate change
-		# SRI, Sweden: -7.65% (GSWP3-W5E5), -1.85% (20CRv3), -7.03% (20CRv3-ERA5), 0.89% (20CRv3-W5E5) --> an average gain of -1 to 8% of local species diversity solely due to climate change
+		# ESI, Spain: 11.40% (GSWP3-W5E5), 7.06% (20CRv3), 6.60% (20CRv3-ERA5), 6.85% (20CRv3-W5E5) --> an average loss of 7-11% of local species diversity solely due to climate change
+		# ESI, France: 18.13% (GSWP3-W5E5), 11.31% (20CRv3), 18.05% (20CRv3-ERA5), 18.74% (20CRv3-W5E5) --> an average loss of 11-19% of local species diversity solely due to climate change
+		# ESI, Sweden: -2.36% (GSWP3-W5E5), -0.03% (20CRv3), -0.92% (20CRv3-ERA5), 2.76% (20CRv3-W5E5) --> an average gain of -2 to 3% of local species diversity solely due to climate change
+		# SRI, Spain: 22.87% (GSWP3-W5E5), 12.59* (20CRv3), 2.02% (20CRv3-ERA5), 8.95% (20CRv3-W5E5) --> an average loss of 10-20% of local species diversity solely due to climate change
+		# SRI, France: 29.86% (GSWP3-W5E5), 15.93% (20CRv3), 30.19% (20CRv3-ERA5), 30.39% (20CRv3-W5E5) --> an average loss of 16-30% of local species diversity solely due to climate change
+		# SRI, Sweden: -6.68% (GSWP3-W5E5), -0.33% (20CRv3), -5.32% (20CRv3-ERA5), -0.28% (20CRv3-W5E5) --> an average gain of 0 to 7% of local species diversity solely due to climate change
 
-pdf(paste0("All_the_figures_&_SI/ESI_&_SRI_GSWP3_NEW.pdf"), width=8, height=5.8)
-par(mfrow=c(3,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.2, col="gray30"); vS2 = c()
+pdf(paste0("All_the_figures_&_SI/ESI_&_SRI_GSWP3_NEW.pdf"), width=8, height=5.8); vS2 = c()
+par(mfrow=c(3,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.2, col="gray30", col.axis="gray30", fg="gray30")
 for (i in 1:length(pastPeriods))
 	{
 		vS2 = c(vS2, ESI_list_1[[1]][[1]][[i]][]-ESI_list_1[[1]][[2]][[i]][])
@@ -1161,12 +1193,14 @@ for (i in 1:length(pastPeriods))
 		difference_obsclim_counterclim[] = difference_obsclim_counterclim[]-ESI_list_1[[1]][[2]][[i]][]
 		index1 = (((min(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
 		index2 = (((max(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+		par(lwd=0.2, col="gray30", col.axis="gray30", fg=NA)
 		plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[3]][index1:index2]; rast = raster(as.matrix(c(minVS2,maxVS2)))
 		plot(difference_obsclim_counterclim, col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
 		mtext("Historical - counterfactual", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
-		mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
-		plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
-			 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+		mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=5.5, cex=0.50, col="gray30")
+		par(lwd=0.2, col="gray30", col.axis="gray30", fg="gray30")
+		plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.085,0.69,0.89), adj=3,
+			 axis.args=list(cex.axis=0.60, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-1.0, col.axis="gray30", line=0, mgp=c(0,0.40,0),
 			 at=c(-0.2,-0.1,0,0.1,0.2)), alpha=1, side=3)
 	}
 vS2 = c()
@@ -1184,12 +1218,14 @@ for (i in 1:length(pastPeriods))
 		difference_obsclim_counterclim[] = difference_obsclim_counterclim[]-SRI_list_1[[1]][[2]][[i]][]
 		index1 = (((min(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
 		index2 = (((max(difference_obsclim_counterclim[],na.rm=T)-minVS2)/(maxVS2-minVS2))*100)+1
+		par(lwd=0.2, col="gray30", col.axis="gray30", fg=NA)
 		plot(europe3, lwd=0.1, border=NA, col=NA); cols = colourScales[[3]][index1:index2]; rast = raster(as.matrix(c(minVS2,maxVS2)))
 		plot(difference_obsclim_counterclim, col=cols, border=NA, lwd=0.1, add=T, legend=F); plot(contour, lwd=0.4, border="gray50", col=NA, add=T)
 		mtext("Historical - counterfactual", side=3, line=-1.1, at=3.5, cex=0.45, col="gray30")
-		mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=3.5, cex=0.50, col="gray30")
-		plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.080,0.66,0.86), adj=3,
-			 axis.args=list(cex.axis=0.55, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-0.8, col.axis="gray30", line=0, mgp=c(0,0.30,0),
+		mtext(paste0("(",pastPeriods[i],")"), side=3, line=-1.8, at=5.5, cex=0.50, col="gray30")
+		par(lwd=0.2, col="gray30", col.axis="gray30", fg="gray30")
+		plot(rast, legend.only=T, add=T, col=colourScales[[3]], legend.width=0.5, legend.shrink=0.3, smallplot=c(0.060,0.085,0.69,0.89), adj=3,
+			 axis.args=list(cex.axis=0.60, lwd=0, col="gray30", lwd.tick=0.2, col.tick="gray30", tck=-1.0, col.axis="gray30", line=0, mgp=c(0,0.40,0),
 			 at=c(-20,-10,0,10,20)), alpha=1, side=3)
 	}
 dev.off()
