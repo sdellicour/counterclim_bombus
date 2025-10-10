@@ -1124,9 +1124,9 @@ for (g in 1:length(models_isimip3a))
 		for (i in 1:dim(species)[1])
 			{
 				avg_ES_loss[i,g] = round(mean(((projections_list_1[[g]][[2]][[length(pastPeriods)]][[i]][]-projections_list_1[[g]][[1]][[length(pastPeriods)]][[i]][])
-				/projections_list_1[[g]][[2]][[length(pastPeriods)]][[j]][])*100,na.rm=T),2) # ((mean_ES_counterclim_2000_2019 - mean_ES_obsclim_2000_2019)/mean_ES_counterclim_2000_2019)*100
+				/projections_list_1[[g]][[2]][[length(pastPeriods)]][[i]][])*100,na.rm=T),2) # ((mean_ES_counterclim_2000_2019 - mean_ES_obsclim_2000_2019)/mean_ES_counterclim_2000_2019)*100
 				max_ES_loss[i,g] = round(max(((projections_list_1[[g]][[2]][[length(pastPeriods)]][[i]][]-projections_list_1[[g]][[1]][[length(pastPeriods)]][[i]][])
-				/projections_list_1[[g]][[2]][[length(pastPeriods)]][[j]][])*100,na.rm=T),2) # ((max_ES_obsclim_2000_2019 - max_ES_counterclim_2000_2019)/max_ES_obsclim_2000_2019)*100
+				/projections_list_1[[g]][[2]][[length(pastPeriods)]][[i]][])*100,na.rm=T),2) # ((max_ES_obsclim_2000_2019 - max_ES_counterclim_2000_2019)/max_ES_obsclim_2000_2019)*100
 		    }
 	}
 write.csv(avg_ES_loss, "Average_ES_loss.csv", quote=F); write.csv(max_ES_loss, "Maximum_ES_loss.csv", quote=F)
