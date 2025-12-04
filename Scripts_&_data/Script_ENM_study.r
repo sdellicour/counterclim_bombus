@@ -1177,6 +1177,40 @@ for (i in 1:length(target_countries))
 		# SRI, France: 29.86% (GSWP3-W5E5), 15.93% (20CRv3), 30.19% (20CRv3-ERA5), 30.39% (20CRv3-W5E5) --> an average loss of 16-30% of local species diversity solely due to climate change
 		# SRI, Sweden: -6.68% (GSWP3-W5E5), -0.33% (20CRv3), -5.32% (20CRv3-ERA5), -0.28% (20CRv3-W5E5) --> an average gain of 0 to 7% of local species diversity solely due to climate change
 
+selected_regions = c("Alpine","Atlantic","Boreal","Continental","Mediterranean","Pannonian")
+if (!file.exists("Biogeo_regions_shp/Biogeo_regions_2016.rds"))
+	{
+		biogeo_regions = shapefile("Biogeo_regions_shp/Biogeo_regions_2016.shp")
+		biogeo_regions = subset(biogeo_regions, code%in%selected_regions)
+		saveRDS(biogeo_regions, "Biogeo_regions_shp/Biogeo_regions_2016.rds")
+	}	else	{
+		biogeo_regions = readRDS("Biogeo_regions_shp/Biogeo_regions_2016.rds")
+	}
+biogeo_region_ESIs = TRUE; biogeo_region_SRIs = FALSE
+for (i in 1:length(selected_regions))
+	{
+		pol = subset(biogeo_regions, code==selected_regions[i])
+		pol = spTransform(pol, crs(ESI_list_1[[1]][[1]][[length(pastPeriods)]]))
+		for (g in 1:length(models_isimip3a))
+			{
+				if (biogeo_region_ESIs)
+					{
+						r1 = mask(crop(ESI_list_1[[g]][[1]][[length(pastPeriods)]], pol), pol)
+						r2 = mask(crop(ESI_list_1[[g]][[2]][[length(pastPeriods)]], pol), pol)						
+					}	else	{
+						r1 = mask(crop(SRI_list_1[[g]][[1]][[length(pastPeriods)]], pol), pol)
+						r2 = mask(crop(SRI_list_1[[g]][[2]][[length(pastPeriods)]], pol), pol)		
+					}
+				print(round(c(mean((r2[]-r1[])/r2[],na.rm=T),max((r2[]-r1[])/r2[],na.rm=T))*100,2))
+			}
+	}
+		# ESI, Alpine: 0.44% (GSWP3-W5E5), 1.21% (20CRv3), -0.73% (20CRv3-ERA5), 0.53% (20CRv3-W5E5)
+		# ESI, Atlantic: 6.20% (GSWP3-W5E5), 6.73% (20CRv3), 7.18% (20CRv3-ERA5), 8.30% (20CRv3-W5E5)
+		# ESI, Boreal: 0.02% (GSWP3-W5E5), -1.17% (20CRv3), 0.95% (20CRv3-ERA5), 4.40% (20CRv3-W5E5)
+		# ESI, Continental: 7.79% (GSWP3-W5E5), 7.13% (20CRv3), 9.99% (20CRv3-ERA5), 9.05% (20CRv3-W5E5)
+		# ESI, Mediterranean: 9.50% (GSWP3-W5E5), 5.14% (20CRv3), 4.58% (20CRv3-ERA5), 4.80% (20CRv3-W5E5)
+		# ESI, Pannonian: 16.29% (GSWP3-W5E5), 10.71% (20CRv3), 16.90% (20CRv3-ERA5), 15.81% (20CRv3-W5E5)
+
 pdf(paste0("All_the_figures_&_SI/ESI_&_SRI_GSWP3_NEW.pdf"), width=8, height=5.8); vS2 = c()
 par(mfrow=c(3,6), oma=c(0,0,0,0), mar=c(0,0,0,0), lwd=0.2, col="gray30", col.axis="gray30", fg="gray30")
 for (i in 1:length(pastPeriods))
