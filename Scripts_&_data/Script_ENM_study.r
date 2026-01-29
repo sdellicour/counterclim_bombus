@@ -1,5 +1,6 @@
 library(ade4)
 library(ape)
+library(beeswarm)
 library(blockCV)
 library(colorspace)
 library(diagram)
@@ -1413,8 +1414,13 @@ for (g in 1:length(models_isimip3a))
 					}
 			}
 		if (boxplots) { dev.new(); boxplot(mean_differences) }
-		col = rgb(70,118,187,130,maxColorValue=255) # blue
-		stripchart(data.frame(mean_differences), method="jitter", vertical=T, pch=16, cex=1, col=col, ann=F, axes=F, ylim=c(yMin,yMax))
+		buffer = c(); col1 = rgb(70,118,187,255,maxColorValue=255); col2 = rgb(70,118,187,130,maxColorValue=255) # blue
+		# stripchart(data.frame(mean_differences), method="jitter", vertical=T, pch=16, cex=1, col=col2, ann=F, axes=F, ylim=c(yMin,yMax))
+		for (i in 1:dim(mean_differences)[2]) buffer = rbind(buffer, cbind(mean_differences[,i], rep(colnames(mean_differences)[i],dim(mean_differences)[1])))
+		buffer = data.frame(buffer); colnames(buffer) = c("mean_BI_difference","period")
+		buffer$mean_BI_difference = as.numeric(buffer$mean_BI_difference); buffer$period = as.factor(buffer$period)
+		beeswarm(formula=as.formula("mean_BI_difference ~ period"), data=buffer, method="compactswarm", pch=16, cex=0.5, spacing=0.95, col=col2, ann=F, axes=F)
+		beeswarm(formula=as.formula("mean_BI_difference ~ period"), data=buffer, method="compactswarm", pch=1, lwd=2, cex=0.5, spacing=0.95, col=col1, ann=F, axes=F, add=T)
 		abline(h=0, lty=2, lwd=0.5, col="gray50")
 		axis(side=1, lwd.tick=0.4, cex.axis=0.9, lwd=0, tck=-0.040, col="gray30", col.axis="gray30", col.tick="gray30", mgp=c(0,0.40,0), at=c(1:6), label=pastPeriods)
 		axis(side=2, lwd.tick=0.4, cex.axis=0.9, lwd=0, tck=-0.035, col="gray30", col.axis="gray30", col.tick="gray30", mgp=c(0,0.45,0))
